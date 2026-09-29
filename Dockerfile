@@ -1,5 +1,6 @@
 # =================================================================
 # OmniStock Production Dockerfile (PHP 8.2 + Apache)
+# Optimized for Render, Railway, Fly.io, VPS & Docker
 # =================================================================
 
 FROM php:8.2-apache
@@ -23,8 +24,9 @@ RUN docker-php-ext-install -j$(nproc) \
     opcache \
     zip
 
-# Enable Apache Modules
-RUN a2enmod rewrite headers deflate expires
+# Enable Apache Modules & Overrides for .htaccess
+RUN a2enmod rewrite headers deflate expires \
+    && sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
 
 # Configure Production PHP settings
 RUN { \
@@ -52,17 +54,19 @@ WORKDIR /var/www/html
 # Copy application files
 COPY . /var/www/html/
 
-# Ensure proper permissions for web server user
-RUN chown -R www-data:www-data /var/www/html \
+# Copy entrypoint script and set permissions
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html \
-    && chmod -R 775 /var/www/html/config /var/www/html/database
+    && chmod -R 777 /var/www/html/config /var/www/html/database
 
-# Expose port
-EXPOSE 80
+# Expose default port (Render will override via $PORT)
+EXPOSE 80 10000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost/api/health.php || exit 1
+    CMD curl -f http://localhost:${PORT:-80}/api/health.php || exit 1
 
-# Start Apache in foreground
-CMD ["apache2-foreground"]
+# Start container via entrypoint
+ENTRYPOINT ["docker-entrypoint.sh"]
