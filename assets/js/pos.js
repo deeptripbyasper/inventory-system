@@ -234,7 +234,7 @@ function addToCart(productJson) {
     if (!product || !product.id) return;
 
     if (product.stock <= 0) {
-        showPosToast(`Out of Stock: ${product.name} (Batch ${product.batch_no}) has 0 units!`, 'error');
+        showPosToast(`Out of Stock: ${product.name} has 0 units!`, 'error');
         return;
     }
 
@@ -242,7 +242,7 @@ function addToCart(productJson) {
 
     if (existingIndex > -1) {
         if (cart[existingIndex].qty + 1 > product.stock) {
-            showPosToast(`Stock Limit: Only ${product.stock} ${product.unit || 'units'} available in Batch ${product.batch_no}`, 'warning');
+            showPosToast(`Stock Limit: Only ${product.stock} ${product.unit || 'units'} available`, 'warning');
             return;
         }
         cart[existingIndex].qty += 1;
@@ -294,7 +294,7 @@ function updateCartQty(index, newQty) {
     }
 
     if (newQty > cart[index].max_stock) {
-        showPosToast(`Stock limit: Maximum available is ${cart[index].max_stock} ${cart[index].unit} in Batch ${cart[index].batch_no}`, 'warning');
+        showPosToast(`Stock limit: Maximum available is ${cart[index].max_stock} ${cart[index].unit}`, 'warning');
         cart[index].qty = cart[index].max_stock;
     } else {
         cart[index].qty = newQty;
@@ -426,19 +426,16 @@ function openInvoicePreviewModal() {
             <tr>
                 <td style="padding: 0.45rem 0.6rem; color: var(--text-muted); font-weight: 600;">${idx + 1}</td>
                 <td style="padding: 0.45rem 0.6rem;">
-                    <div style="font-weight: 700; color: var(--text-primary);">${escapeHtml(it.name)}</div>
-                    <div style="font-size: 0.72rem; color: var(--text-muted); font-family: monospace;">SKU: ${escapeHtml(it.sku)}${it.barcode ? ' • Barcode: ' + escapeHtml(it.barcode) : ''}</div>
+                    <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">${escapeHtml(it.name)}</div>
                 </td>
-                <td style="padding: 0.45rem 0.6rem; font-size: 0.75rem;">
-                    <span class="badge badge-secondary" style="font-size: 0.7rem;">${escapeHtml(it.batch_no)}</span>
-                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">Exp: ${formatExpDate(it.expiry_date)}</div>
+                <td style="padding: 0.45rem 0.6rem; font-size: 0.75rem; color: var(--text-secondary); font-family: monospace;">
+                    ${escapeHtml(it.sku)}
                 </td>
                 <td style="padding: 0.45rem 0.6rem; text-align: center; font-weight: 700;">
                     <span class="badge badge-info" style="font-size: 0.75rem;">${it.qty} ${escapeHtml(it.unit)}</span>
                 </td>
-                <td style="padding: 0.5rem 0.65rem; text-align: right; font-size: 0.85rem;">
-                    <strong style="color: var(--text-primary); font-size: 0.92rem;">${currencySymbol}${it.unit_price.toFixed(2)}</strong>
-                    <span style="display: block; font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">per ${escapeHtml(it.unit)}</span>
+                <td style="padding: 0.5rem 0.65rem; text-align: right; font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">
+                    ${currencySymbol}${it.unit_price.toFixed(2)}
                 </td>
                 <td style="padding: 0.5rem 0.65rem; text-align: right; font-weight: 800; color: var(--primary); font-size: 0.95rem;">
                     ${currencySymbol}${lineTot.toFixed(2)}
@@ -605,16 +602,13 @@ function renderCart() {
                 <td style="color: var(--text-muted); font-weight: 600;">${index + 1}</td>
                 <td>
                     <div style="font-weight: 700; color: var(--text-primary); line-height: 1.2;">${escapeHtml(item.name)}</div>
-                    <div style="font-size: 0.68rem; color: var(--text-muted); margin-top: 1px;">
-                        <span style="font-weight: 600; color: var(--text-secondary);">Batch: ${escapeHtml(item.batch_no)}</span> • Exp: ${formatExpDate(item.expiry_date)}
-                    </div>
                 </td>
                 <td style="font-size: 0.72rem; color: var(--text-secondary); font-family: monospace;">${escapeHtml(item.sku)}</td>
                 <td style="text-align: center;">
                     <span class="badge badge-primary" style="font-size: 0.72rem; padding: 0.1rem 0.35rem;">${item.qty} ${escapeHtml(item.unit)}</span>
                 </td>
-                <td style="text-align: right; font-size: 0.75rem; color: var(--text-secondary);">
-                    <strong>${currencySymbol}${item.unit_price.toFixed(2)}</strong> / ${escapeHtml(item.unit)}
+                <td style="text-align: right; font-size: 0.82rem; font-weight: 700; color: var(--text-primary);">
+                    ${currencySymbol}${item.unit_price.toFixed(2)}
                 </td>
                 <td style="text-align: right; font-weight: 700; color: var(--primary); font-size: 0.8rem;">${currencySymbol}${itemTotal.toFixed(2)}</td>
             </tr>

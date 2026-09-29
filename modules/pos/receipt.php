@@ -590,8 +590,8 @@ $storeFssai = $systemSettings['store_fssai'] ?? '10019021004321';
                                 </td>
                             </tr>
                             <tr>
-                                <td style="padding-left: 10px; font-size: 10px; color: #333;">
-                                    B:<?= e($item['batch_no'] ?? 'N/A') ?> Exp:<?= date('m/y', strtotime($item['expiry_date'])) ?>
+                                <td style="padding-left: 10px; font-size: 10px; color: #64748b;">
+                                    SKU: <?= e($item['sku']) ?>
                                 </td>
                                 <td style="text-align: center; font-weight: 600;"><?= $item['quantity'] ?></td>
                                 <td style="text-align: right;"><?= number_format($item['unit_price'], 2) ?></td>
@@ -715,11 +715,11 @@ $storeFssai = $systemSettings['store_fssai'] ?? '10019021004321';
                     <thead>
                         <tr>
                             <th style="width: 5%;">#</th>
-                            <th style="width: 40%;">Item Description</th>
-                            <th style="width: 18%;">Batch & Expiry</th>
+                            <th style="width: 48%;">Item Description</th>
+                            <th style="width: 15%;">SKU Code</th>
                             <th style="text-align: center; width: 10%;">Qty</th>
-                            <th style="text-align: right; width: 12%;">Unit Rate</th>
-                            <th style="text-align: right; width: 15%;">Amount</th>
+                            <th style="text-align: right; width: 11%;">Price</th>
+                            <th style="text-align: right; width: 11%;">Amount</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -730,15 +730,13 @@ $storeFssai = $systemSettings['store_fssai'] ?? '10019021004321';
                             <tr>
                                 <td><?= $sl++ ?></td>
                                 <td>
-                                    <strong><?= e($item['product_name']) ?></strong><br>
-                                    <small style="color: #64748b;">SKU: <?= e($item['sku']) ?><?= !empty($item['barcode']) ? ' | Barcode: ' . e($item['barcode']) : '' ?></small>
+                                    <strong><?= e($item['product_name']) ?></strong>
                                 </td>
                                 <td>
-                                    <span style="font-weight: 600;"><?= e($item['batch_no'] ?? 'N/A') ?></span><br>
-                                    <small style="color: #64748b;">Exp: <?= formatDate($item['expiry_date'], 'd M Y') ?></small>
+                                    <code><?= e($item['sku']) ?></code>
                                 </td>
                                 <td style="text-align: center; font-weight: 700;"><?= $item['quantity'] ?> <?= e($item['unit']) ?></td>
-                                <td style="text-align: right;"><?= formatCurrency($item['unit_price']) ?></td>
+                                <td style="text-align: right; font-weight: 600;"><?= formatCurrency($item['unit_price']) ?></td>
                                 <td style="text-align: right; font-weight: 700;"><?= formatCurrency($item['subtotal']) ?></td>
                             </tr>
                         <?php endforeach; ?>

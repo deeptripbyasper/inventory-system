@@ -182,7 +182,7 @@ $totalProductsCount = count($availableItems);
                              data-category-id="<?= $item['category_id'] ?>"
                              data-product="<?= htmlspecialchars(json_encode($item), ENT_QUOTES, 'UTF-8') ?>"
                              onclick="addToCart(this.getAttribute('data-product'))"
-                             title="Click to add <?= e($item['name']) ?> (Batch <?= e($item['batch_no']) ?>) to bill">
+                             title="Click to add <?= e($item['name']) ?> to bill">
                             
                             <div class="pos-card-top">
                                 <span class="pos-cat-tag">
@@ -211,11 +211,7 @@ $totalProductsCount = count($availableItems);
 
                             <div class="pos-card-bottom">
                                 <div class="pos-product-price-wrapper">
-                                    <span class="pos-unit-price-label">Price per Unit</span>
-                                    <div class="pos-price-num-wrap">
-                                        <span class="pos-product-price"><?= formatCurrency($item['price']) ?></span>
-                                        <span class="pos-unit-tag">/ <?= e($item['unit']) ?></span>
-                                    </div>
+                                    <span class="pos-product-price"><?= formatCurrency($item['price']) ?></span>
                                 </div>
                             </div>
 
@@ -550,10 +546,10 @@ $totalProductsCount = count($availableItems);
                     <thead>
                         <tr>
                             <th style="width: 35px;">#</th>
-                            <th>Product Details</th>
-                            <th>Batch / Expiry</th>
+                            <th>Product Name</th>
+                            <th>SKU Code</th>
                             <th style="text-align: center;">Qty</th>
-                            <th style="text-align: right;">Price per Unit</th>
+                            <th style="text-align: right;">Price</th>
                             <th style="text-align: right;">Total Amount</th>
                         </tr>
                     </thead>
