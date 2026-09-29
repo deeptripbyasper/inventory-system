@@ -126,12 +126,12 @@ if ($dbSettings) {
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label" for="currency_symbol">Currency Symbol</label>
-                    <input type="text" id="currency_symbol" name="currency_symbol" class="form-control" value="<?= e($currentSettings['currency_symbol'] ?? '$') ?>" placeholder="e.g. $, ₹, €, £">
+                    <input type="text" id="currency_symbol" name="currency_symbol" class="form-control" value="<?= e($currentSettings['currency_symbol'] ?? '₹') ?>" placeholder="e.g. ₹, INR, Rs.">
                 </div>
 
                 <div class="form-group">
                     <label class="form-label" for="currency_code">Currency Code</label>
-                    <input type="text" id="currency_code" name="currency_code" class="form-control" value="<?= e($currentSettings['currency_code'] ?? 'USD') ?>" placeholder="e.g. USD, INR, EUR, GBP">
+                    <input type="text" id="currency_code" name="currency_code" class="form-control" value="<?= e($currentSettings['currency_code'] ?? 'INR') ?>" placeholder="e.g. INR">
                 </div>
 
                 <div class="form-group">

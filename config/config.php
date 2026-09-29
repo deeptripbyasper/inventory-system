@@ -150,9 +150,18 @@ if ($db->isConnected()) {
     }
 }
 
+// Guarantee INR / ₹ currency is always enforced
+if (empty($systemSettings['currency_symbol']) || $systemSettings['currency_symbol'] === '$') {
+    $systemSettings['currency_symbol'] = '₹';
+}
+if (empty($systemSettings['currency_code']) || $systemSettings['currency_code'] === 'USD') {
+    $systemSettings['currency_code'] = 'INR';
+}
+
 // Global Constants from Settings
 define('STORE_NAME', $systemSettings['store_name']);
 define('CURRENCY_SYMBOL', $systemSettings['currency_symbol']);
+define('CURRENCY_CODE', $systemSettings['currency_code']);
 define('TAX_RATE', (float)$systemSettings['tax_rate_percent']);
 define('EXPIRY_CRITICAL_DAYS', (int)$systemSettings['expiry_alert_days_critical']);
 define('EXPIRY_WARNING_DAYS', (int)$systemSettings['expiry_alert_days_warning']);
