@@ -35,7 +35,7 @@ echo PHP_EOL;
 
 // 2. Product sample check
 echo "--- Sample Product Checks ---" . PHP_EOL;
-$sampleSkus = ['AMUL-TZ-500', 'AMUL-IC-CHO-1L', 'BEV-THUM-750', 'CAD-SILK-60'];
+$sampleSkus = ['MILK-AMUL-TZ-500', 'AMUL-IC-CHO-1L', 'BEV-THUM-750', 'CAD-SILK-60'];
 foreach ($sampleSkus as $sku) {
     $p = $db->fetchOne("
         SELECT p.name, p.sku, p.barcode, p.default_selling_price, c.name as category_name
