@@ -8,6 +8,41 @@
 
 defined('APP_INIT') or define('APP_INIT', true);
 
+/**
+ * SQLite Result Wrapper for compatibility with MySQLi Result objects
+ */
+class SqliteResult {
+    private $rows = [];
+    private $currentIndex = 0;
+    public $num_rows = 0;
+
+    public function __construct(PDOStatement $stmt) {
+        $this->rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $this->num_rows = count($this->rows);
+    }
+
+    public function fetch_assoc() {
+        if ($this->currentIndex < $this->num_rows) {
+            return $this->rows[$this->currentIndex++];
+        }
+        return null;
+    }
+
+    public function fetch_array() {
+        return $this->fetch_assoc();
+    }
+
+    public function fetch_row() {
+        $row = $this->fetch_assoc();
+        return $row ? array_values($row) : null;
+    }
+
+    public function free() {
+        $this->rows = [];
+        $this->num_rows = 0;
+    }
+}
+
 class Database {
     private static $instance = null;
     private $mysqli = null;
@@ -124,6 +159,11 @@ class Database {
                 return (int)date('m', strtotime($d));
             }, 1);
 
+            $this->pdo->sqliteCreateFunction('DAY', function($d) {
+                if (empty($d)) return null;
+                return (int)date('d', strtotime($d));
+            }, 1);
+
             $this->pdo->sqliteCreateFunction('DATE', function($d) {
                 if (empty($d)) return null;
                 return date('Y-m-d', strtotime($d));
@@ -134,8 +174,33 @@ class Database {
                 return (int)date('H', strtotime($d));
             }, 1);
 
+            $this->pdo->sqliteCreateFunction('DATEDIFF', function($d1, $d2) {
+                if (empty($d1) || empty($d2)) return 0;
+                $t1 = strtotime($d1);
+                $t2 = strtotime($d2);
+                return (int)round(($t1 - $t2) / 86400);
+            }, 2);
+
+            $this->pdo->sqliteCreateFunction('IFNULL', function($val, $fallback) {
+                return ($val !== null && $val !== '') ? $val : $fallback;
+            }, 2);
+
+            $this->pdo->sqliteCreateFunction('CONCAT', function(...$args) {
+                return implode('', $args);
+            });
+
             if ($needsInit) {
                 $this->seedSqliteDatabase();
+            } else {
+                // Auto-sync catalog if existing SQLite database is missing the 4 new product categories
+                try {
+                    $cnt = $this->fetchOne("SELECT COUNT(*) as c FROM `products` WHERE `sku` LIKE 'CAD-%' OR `sku` LIKE 'AMUL-%' OR `sku` LIKE 'BEV-%' OR `sku` LIKE 'MILK-%'");
+                    if (empty($cnt) || (int)($cnt['c'] ?? 0) < 50) {
+                        $this->seedSqliteDatabase();
+                    }
+                } catch (Exception $e) {
+                    $this->seedSqliteDatabase();
+                }
             }
         } catch (Exception $e) {
             $this->pdo = null;
@@ -176,24 +241,26 @@ class Database {
     private function adaptQuery($sql) {
         if ($this->driver !== 'sqlite') return $sql;
 
-        // Adapt DATE_ADD(CURDATE(), INTERVAL X DAY)
+        // Adapt DATE_ADD(base, INTERVAL X DAY)
         $sql = preg_replace_callback('/DATE_ADD\s*\(\s*(CURDATE\(\)|NOW\(\)|[?a-zA-Z0-9_\'"\.\-]+)\s*,\s*INTERVAL\s+([0-9\?]+)\s+DAY\s*\)/i', function($m) {
             $base = $m[1];
             $days = $m[2];
-            if ($base === 'CURDATE()' || $base === 'NOW()') {
-                return "date('now', '+" . $days . " days')";
+            $baseSql = ($base === 'CURDATE()' || $base === 'NOW()') ? "date('now')" : "date(" . $base . ")";
+            if ($days === '?') {
+                return "date(" . $baseSql . ", '+' || ? || ' days')";
             }
-            return "date(" . $base . ", '+" . $days . " days')";
+            return "date(" . $baseSql . ", '+" . $days . " days')";
         }, $sql);
 
-        // Adapt DATE_SUB(CURDATE(), INTERVAL X DAY)
+        // Adapt DATE_SUB(base, INTERVAL X DAY)
         $sql = preg_replace_callback('/DATE_SUB\s*\(\s*(CURDATE\(\)|NOW\(\)|[?a-zA-Z0-9_\'"\.\-]+)\s*,\s*INTERVAL\s+([0-9\?]+)\s+DAY\s*\)/i', function($m) {
             $base = $m[1];
             $days = $m[2];
-            if ($base === 'CURDATE()' || $base === 'NOW()') {
-                return "date('now', '-" . $days . " days')";
+            $baseSql = ($base === 'CURDATE()' || $base === 'NOW()') ? "date('now')" : "date(" . $base . ")";
+            if ($days === '?') {
+                return "date(" . $baseSql . ", '-' || ? || ' days')";
             }
-            return "date(" . $base . ", '-" . $days . " days')";
+            return "date(" . $baseSql . ", '-" . $days . " days')";
         }, $sql);
 
         // Adapt FOR UPDATE (No-op in SQLite)
@@ -245,7 +312,15 @@ class Database {
             return $this->mysqli->query($sql);
         } else {
             $adapted = $this->adaptQuery($sql);
-            return $this->pdo->query($adapted);
+            try {
+                $stmt = $this->pdo->query($adapted);
+                if (!$stmt) return false;
+                return new SqliteResult($stmt);
+            } catch (Exception $e) {
+                $this->error = $e->getMessage();
+                error_log("SQLite Query Error: " . $e->getMessage() . " | SQL: " . $adapted);
+                return false;
+            }
         }
     }
 
@@ -310,7 +385,8 @@ class Database {
 
                 $stmt->execute($boundParams);
 
-                if (stripos($adapted, 'SELECT') === 0 || stripos($adapted, 'PRAGMA') === 0 || stripos($adapted, 'SHOW') === 0) {
+                $trimmedSql = trim($adapted);
+                if (preg_match('/^(SELECT|PRAGMA|SHOW|EXPLAIN|WITH)\b/i', $trimmedSql)) {
                     return $stmt->fetchAll(PDO::FETCH_ASSOC);
                 }
 

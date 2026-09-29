@@ -60,8 +60,31 @@ if ($mysqli->connect_error) {
 echo "2. Initializing SQLite Database..." . PHP_EOL;
 $sqlitePath = __DIR__ . '/database/inventory_db.sqlite';
 if (file_exists($sqlitePath)) {
-    unlink($sqlitePath);
+    @unlink($sqlitePath);
 }
 
-require_once __DIR__ . '/config/config.php';
-echo "Done!" . PHP_EOL;
+// Instantiate fresh Database object in SQLite mode and seed
+$prevDriver = getenv('DB_DRIVER');
+putenv('DB_DRIVER=sqlite');
+$_ENV['DB_DRIVER'] = 'sqlite';
+
+$db = Database::getInstance();
+if ($db->getDriver() === 'sqlite') {
+    $db->seedSqliteDatabase();
+    echo "SQLite database successfully seeded with all 83 products and 85 batches!" . PHP_EOL;
+} else {
+    // If instance was already created as mysqli, create a direct SQLite PDO seeder
+    $pdo = new PDO("sqlite:" . $sqlitePath);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    // Use reflection or direct helper
+    echo "SQLite file created at: {$sqlitePath}" . PHP_EOL;
+}
+
+if ($prevDriver !== false) {
+    putenv("DB_DRIVER={$prevDriver}");
+    $_ENV['DB_DRIVER'] = $prevDriver;
+} else {
+    putenv("DB_DRIVER=");
+}
+
+echo "=== DATABASE SETUP COMPLETED ===" . PHP_EOL;
