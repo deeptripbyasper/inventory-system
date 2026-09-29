@@ -35,12 +35,18 @@ AddDefaultCharset UTF-8
     </IfModule>
 </FilesMatch>
 
-# 4. Security Headers
+# 4. Security & No-Cache Headers
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"
     Header always set X-Frame-Options "SAMEORIGIN"
     Header always set X-XSS-Protection "1; mode=block"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    <FilesMatch "\.(php|html|htm)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
 </IfModule>
 
 # 5. Enable GZIP Compression for Fast Page Loads

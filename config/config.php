@@ -65,12 +65,14 @@ if ($isDebug) {
     error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
 }
 
-// Global Security Response Headers
+// Global Security Response Headers & Dynamic Cache Prevention
 if (!headers_sent()) {
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: SAMEORIGIN');
     header('X-XSS-Protection: 1; mode=block');
     header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
 }
 
 // Secure Session Cookie Settings
