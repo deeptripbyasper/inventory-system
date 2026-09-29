@@ -7,11 +7,11 @@
 defined('APP_INIT') or define('APP_INIT', true);
 
 // Base Paths
-define('BASE_PATH', dirname(__DIR__));
-define('ROOT_PATH', BASE_PATH);
-define('INCLUDES_PATH', BASE_PATH . '/includes');
-define('MODULES_PATH', BASE_PATH . '/modules');
-define('CONFIG_PATH', BASE_PATH . '/config');
+defined('BASE_PATH') or define('BASE_PATH', dirname(__DIR__));
+defined('ROOT_PATH') or define('ROOT_PATH', BASE_PATH);
+defined('INCLUDES_PATH') or define('INCLUDES_PATH', BASE_PATH . '/includes');
+defined('MODULES_PATH') or define('MODULES_PATH', BASE_PATH . '/modules');
+defined('CONFIG_PATH') or define('CONFIG_PATH', BASE_PATH . '/config');
 
 /**
  * Lightweight Zero-Dependency .env Loader
@@ -113,12 +113,12 @@ if (!empty($envAppUrl)) {
     // If explicit base URL or domain provided in .env
     $parsedUrl = parse_url($envAppUrl);
     $baseUrl = rtrim($parsedUrl['path'] ?? '', '/');
-    define('BASE_URL', $baseUrl);
+    defined('BASE_URL') or define('BASE_URL', $baseUrl);
 } else {
     $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
     $basePath = preg_replace('/(\/modules(\/.*)?|\/api(\/.*)?)$/', '', $scriptDir);
     $baseUrl = rtrim($basePath, '/');
-    define('BASE_URL', $baseUrl);
+    defined('BASE_URL') or define('BASE_URL', $baseUrl);
 }
 
 // Include Database
@@ -160,13 +160,13 @@ if (empty($systemSettings['currency_code']) || $systemSettings['currency_code'] 
     $systemSettings['currency_code'] = 'INR';
 }
 
-// Global Constants from Settings
-define('STORE_NAME', $systemSettings['store_name']);
-define('CURRENCY_SYMBOL', $systemSettings['currency_symbol']);
-define('CURRENCY_CODE', $systemSettings['currency_code']);
-define('TAX_RATE', (float)$systemSettings['tax_rate_percent']);
-define('EXPIRY_CRITICAL_DAYS', (int)$systemSettings['expiry_alert_days_critical']);
-define('EXPIRY_WARNING_DAYS', (int)$systemSettings['expiry_alert_days_warning']);
+// Global Constants from Settings (Guarded against redefinition)
+defined('STORE_NAME') or define('STORE_NAME', $systemSettings['store_name']);
+defined('CURRENCY_SYMBOL') or define('CURRENCY_SYMBOL', $systemSettings['currency_symbol']);
+defined('CURRENCY_CODE') or define('CURRENCY_CODE', $systemSettings['currency_code']);
+defined('TAX_RATE') or define('TAX_RATE', (float)$systemSettings['tax_rate_percent']);
+defined('EXPIRY_CRITICAL_DAYS') or define('EXPIRY_CRITICAL_DAYS', (int)$systemSettings['expiry_alert_days_critical']);
+defined('EXPIRY_WARNING_DAYS') or define('EXPIRY_WARNING_DAYS', (int)$systemSettings['expiry_alert_days_warning']);
 
 // Include Global Helper Functions
 require_once INCLUDES_PATH . '/functions.php';
