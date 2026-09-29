@@ -427,9 +427,7 @@ function openInvoicePreviewModal() {
                 <td style="padding: 0.45rem 0.6rem; color: var(--text-muted); font-weight: 600;">${idx + 1}</td>
                 <td style="padding: 0.45rem 0.6rem;">
                     <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">${escapeHtml(it.name)}</div>
-                </td>
-                <td style="padding: 0.45rem 0.6rem; font-size: 0.75rem; color: var(--text-secondary); font-family: monospace;">
-                    ${escapeHtml(it.sku)}
+                    <small style="color: var(--text-muted); font-size: 0.75rem;">${escapeHtml(it.category_name || '')}</small>
                 </td>
                 <td style="padding: 0.45rem 0.6rem; text-align: center; font-weight: 700;">
                     <span class="badge badge-info" style="font-size: 0.75rem;">${it.qty} ${escapeHtml(it.unit)}</span>
@@ -565,7 +563,6 @@ function renderCart() {
                         </div>
                         <div class="cart-item-title" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
                         <div class="cart-item-meta">
-                            <span class="meta-tag"><i class="fa-solid fa-tag"></i> SKU: ${escapeHtml(item.sku)}</span>
                             <span class="meta-tag"><i class="fa-solid fa-indian-rupee-sign"></i> <strong>${currencySymbol}${item.unit_price.toFixed(2)} / ${escapeHtml(item.unit)}</strong></span>
                         </div>
                     </div>

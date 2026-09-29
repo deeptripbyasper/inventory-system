@@ -595,11 +595,26 @@ class Database {
 
         $this->pdo->exec($schema);
 
-        // Check if products already exist
+        // Check if products already exist and verify it has the latest catalog
         $stmt = $this->pdo->query("SELECT COUNT(*) as cnt FROM products");
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
         if ($row && $row['cnt'] > 0) {
-            return; // Already populated
+            $checkNew = $this->pdo->query("SELECT COUNT(*) as cnt FROM products WHERE sku = 'MILK-AMUL-TZ-500'");
+            $newRow = $checkNew ? $checkNew->fetch(PDO::FETCH_ASSOC) : null;
+            if ($newRow && $newRow['cnt'] > 0) {
+                return; // Already populated with newest Amul/Cadbury catalog
+            }
+            // Wipe outdated legacy data
+            $this->pdo->exec("
+                DELETE FROM sale_items;
+                DELETE FROM sales;
+                DELETE FROM stock_adjustments;
+                DELETE FROM stock_in_logs;
+                DELETE FROM product_batches;
+                DELETE FROM products;
+                DELETE FROM categories;
+                DELETE FROM suppliers;
+            ");
         }
 
         // Seed Users

@@ -547,9 +547,8 @@ $totalProductsCount = count($availableItems);
                         <tr>
                             <th style="width: 35px;">#</th>
                             <th>Product Name</th>
-                            <th>SKU Code</th>
                             <th style="text-align: center;">Qty</th>
-                            <th style="text-align: right;">Price</th>
+                            <th style="text-align: right;">Price per Unit</th>
                             <th style="text-align: right;">Total Amount</th>
                         </tr>
                     </thead>
