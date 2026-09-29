@@ -43,25 +43,32 @@ $products = $db->fetchAll("
     ORDER BY c.id ASC, p.name ASC, b.expiry_date ASC
 ");
 
-// Group available items for frontend
+// Group available items for frontend (one card per product with earliest FEFO batch)
 $availableItems = [];
+$seenProducts = [];
 foreach ($products as $p) {
-    $availableItems[] = [
-        'id' => (int)$p['product_id'],
-        'batch_id' => (int)$p['batch_id'],
-        'batch_no' => $p['batch_no'],
-        'expiry_date' => $p['expiry_date'],
-        'name' => $p['product_name'],
-        'sku' => $p['sku'],
-        'barcode' => $p['barcode'],
-        'unit' => $p['unit'],
-        'min_stock' => (int)$p['min_stock_alert'],
-        'price' => (float)$p['selling_price'],
-        'cost_price' => (float)$p['purchase_price'],
-        'stock' => (int)$p['current_quantity'],
-        'category_id' => (int)$p['category_id'],
-        'category_name' => $p['category_name'] ?? 'General'
-    ];
+    $prodId = (int)$p['product_id'];
+    $sellingPrice = (float)($p['selling_price'] > 0 ? $p['selling_price'] : ($p['default_selling_price'] ?? 0));
+    
+    if (!isset($seenProducts[$prodId])) {
+        $seenProducts[$prodId] = true;
+        $availableItems[] = [
+            'id' => $prodId,
+            'batch_id' => (int)$p['batch_id'],
+            'batch_no' => $p['batch_no'],
+            'expiry_date' => $p['expiry_date'],
+            'name' => $p['product_name'],
+            'sku' => $p['sku'],
+            'barcode' => $p['barcode'],
+            'unit' => $p['unit'],
+            'min_stock' => (int)$p['min_stock_alert'],
+            'price' => $sellingPrice,
+            'cost_price' => (float)$p['purchase_price'],
+            'stock' => (int)$p['current_quantity'],
+            'category_id' => (int)$p['category_id'],
+            'category_name' => $p['category_name'] ?? 'General'
+        ];
+    }
 }
 
 $totalProductsCount = count($availableItems);
@@ -198,20 +205,13 @@ $totalProductsCount = count($availableItems);
                                 <?= e($item['name']) ?>
                             </div>
 
-                            <div class="pos-card-meta">
-                                <span class="pos-sku-pill" title="SKU Code">
-                                    <i class="fa-solid fa-tag"></i> <?= e($item['sku']) ?>
-                                </span>
-                                <?php if (!empty($item['barcode'])): ?>
-                                    <span class="pos-barcode-pill" title="Barcode">
-                                        <i class="fa-solid fa-barcode"></i> <?= e($item['barcode']) ?>
-                                    </span>
-                                <?php endif; ?>
-                            </div>
-
                             <div class="pos-card-bottom">
                                 <div class="pos-product-price-wrapper">
-                                    <span class="pos-product-price"><?= formatCurrency($item['price']) ?></span>
+                                    <span class="pos-unit-price-label">Price per Unit</span>
+                                    <div class="pos-price-num-wrap">
+                                        <span class="pos-product-price"><?= formatCurrency($item['price']) ?></span>
+                                        <span class="pos-unit-tag">/ <?= e($item['unit']) ?></span>
+                                    </div>
                                 </div>
                             </div>
 
