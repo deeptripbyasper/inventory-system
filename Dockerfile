@@ -28,15 +28,10 @@ RUN docker-php-ext-install -j$(nproc) \
 RUN a2enmod rewrite headers deflate expires \
     && sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
 
-# Configure Production PHP settings
+# Configure Production PHP settings (Zero OPcache caching to ensure live updates render instantly)
 RUN { \
-    echo 'opcache.memory_consumption=128'; \
-    echo 'opcache.interned_strings_buffer=8'; \
-    echo 'opcache.max_accelerated_files=4000'; \
-    echo 'opcache.revalidate_freq=0'; \
-    echo 'opcache.validate_timestamps=1'; \
-    echo 'opcache.fast_shutdown=1'; \
-    echo 'opcache.enable_cli=1'; \
+    echo 'opcache.enable=0'; \
+    echo 'opcache.enable_cli=0'; \
 } > /usr/local/etc/php/conf.d/opcache-recommended.ini
 
 RUN { \
@@ -59,6 +54,8 @@ COPY . /var/www/html/
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN sed -i -e 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
     && chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && mkdir -p /var/www/html/database /var/www/html/config \
+    && DB_DRIVER=sqlite php /var/www/html/setup_database.php || true \
     && chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html \
     && chmod -R 777 /var/www/html/config /var/www/html/database

@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: omnistock-inventory
+    runtime: docker
+    plan: free
+    region: oregon
+    autoDeploy: true
+    healthCheckPath: /api/health.php
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_TIMEZONE
+        value: Asia/Kolkata
+      - key: DB_DRIVER
+        value: sqlite

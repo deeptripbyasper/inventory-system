@@ -74,7 +74,7 @@ $refProp->setAccessible(true);
 $refProp->setValue(null, null);
 
 $sqliteDb = Database::getInstance();
-$sqliteDb->seedSqliteDatabase();
+$sqliteDb->seedSqliteDatabase(true);
 echo "SQLite database successfully seeded with all 83 products and 85 batches at: {$sqlitePath}" . PHP_EOL;
 
 if ($prevDriver !== false && !empty($prevDriver)) {
