@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: omnistock_app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_TIMEZONE=Asia/Kolkata
+      - DB_DRIVER=mysqli
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE:-inventory_db}
+      - DB_USERNAME=${DB_USERNAME:-inventory_user}
+      - DB_PASSWORD=${DB_PASSWORD:-secure_db_pass_2026}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - omnistock_network
+
+  db:
+    image: mysql:8.0
+    container_name: omnistock_db
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_super_secret_2026}
+      MYSQL_DATABASE: ${DB_DATABASE:-inventory_db}
+      MYSQL_USER: ${DB_USERNAME:-inventory_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secure_db_pass_2026}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./database/sample_data.sql:/docker-entrypoint-initdb.d/02_sample.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-root_super_secret_2026}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - omnistock_network
+
+  # Optional phpMyAdmin for web-based database administration (access via port 8081)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: omnistock_phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+    depends_on:
+      - db
+    networks:
+      - omnistock_network
+
+volumes:
+  db_data:
+    driver: local
+
+networks:
+  omnistock_network:
+    driver: bridge

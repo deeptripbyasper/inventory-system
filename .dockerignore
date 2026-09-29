@@ -1,0 +1,17 @@
+.git
+.gitignore
+.env
+.env.local
+config/install.lock
+config/db_custom.php
+database/*.sqlite
+database/*.sqlite-journal
+*.log
+.idea
+.vscode
+Dockerfile
+docker-compose.yml
+.dockerignore
+start_server.bat
+run.ps1
+setup_php.ps1

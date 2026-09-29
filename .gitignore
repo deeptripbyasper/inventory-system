@@ -1,0 +1,30 @@
+# Environment & Credentials
+.env
+.env.local
+.env.*.local
+
+# Installation Lock & Custom Database Overrides
+config/install.lock
+config/db_custom.php
+
+# Local SQLite databases
+database/*.sqlite
+database/*.sqlite-journal
+database/*.db
+
+# Log files
+*.log
+logs/
+
+# Operating System & IDE Files
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# Temporary / Scratch
+tmp/
+temp/
