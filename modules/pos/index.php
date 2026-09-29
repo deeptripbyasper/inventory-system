@@ -217,11 +217,6 @@ $totalProductsCount = count($availableItems);
                                         <span class="pos-unit-tag">/ <?= e($item['unit']) ?></span>
                                     </div>
                                 </div>
-                                
-                                <div class="pos-exp-badge <?= $expInfo['badge_class'] ?>" title="Batch <?= e($item['batch_no']) ?>: <?= $expInfo['label'] ?>">
-                                    <i class="fa-solid <?= $expInfo['icon'] ?>"></i>
-                                    <span><?= formatDate($item['expiry_date'], 'd M y') ?></span>
-                                </div>
                             </div>
 
                             <div class="pos-card-hover-overlay">

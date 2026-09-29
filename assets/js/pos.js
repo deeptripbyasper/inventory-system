@@ -568,9 +568,8 @@ function renderCart() {
                         </div>
                         <div class="cart-item-title" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
                         <div class="cart-item-meta">
-                            <span class="meta-tag"><i class="fa-solid fa-barcode"></i> ${escapeHtml(item.sku)}${item.barcode ? ' • ' + escapeHtml(item.barcode) : ''}</span>
-                            <span class="meta-tag"><i class="fa-solid fa-layer-group"></i> Batch: <strong>${escapeHtml(item.batch_no)}</strong></span>
-                            <span class="meta-tag"><i class="fa-regular fa-clock"></i> Exp: <strong>${formatExpDate(item.expiry_date)}</strong></span>
+                            <span class="meta-tag"><i class="fa-solid fa-tag"></i> SKU: ${escapeHtml(item.sku)}</span>
+                            <span class="meta-tag"><i class="fa-solid fa-indian-rupee-sign"></i> <strong>${currencySymbol}${item.unit_price.toFixed(2)} / ${escapeHtml(item.unit)}</strong></span>
                         </div>
                     </div>
                     <button type="button" class="cart-item-remove" onclick="removeFromCart(${index})" title="Remove item from bill">
@@ -587,7 +586,7 @@ function renderCart() {
                     </div>
                     <div class="cart-price-col">
                         <div class="cart-unit-rate-badge">
-                            <span class="rate-lbl">Rate:</span> <strong>${currencySymbol}${item.unit_price.toFixed(2)}</strong> / ${escapeHtml(item.unit)}
+                            <span class="rate-lbl">Price / Unit:</span> <strong>${currencySymbol}${item.unit_price.toFixed(2)}</strong> / ${escapeHtml(item.unit)}
                         </div>
                         <div class="cart-item-total">
                             ${currencySymbol}${itemTotal.toFixed(2)}
