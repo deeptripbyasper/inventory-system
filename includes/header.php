@@ -31,7 +31,7 @@ $currentUser = currentUser();
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css?v=<?= file_exists(ROOT_PATH . '/assets/css/style.css') ? filemtime(ROOT_PATH . '/assets/css/style.css') : time() ?>">
     
     <script>
-        window.APP_CURRENCY = '<?= e(CURRENCY_SYMBOL) ?>';
+        window.APP_CURRENCY = '<?= e(preg_match('/[0-9]/', CURRENCY_SYMBOL) || CURRENCY_SYMBOL === '$' ? '₹' : CURRENCY_SYMBOL) ?>';
         window.APP_TAX_RATE = <?= (float)TAX_RATE ?>;
         window.BASE_URL = '<?= e(BASE_URL) ?>';
     </script>

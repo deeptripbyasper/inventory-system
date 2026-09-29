@@ -611,7 +611,7 @@ $totalProductsCount = count($availableItems);
 <iframe id="posPrintIframe" style="display: none; position: absolute; width: 0; height: 0; border: none;"></iframe>
 
 <script>
-    window.APP_CURRENCY = '<?= e(CURRENCY_SYMBOL) ?>';
+    window.APP_CURRENCY = '<?= e(preg_match('/[0-9]/', CURRENCY_SYMBOL) || CURRENCY_SYMBOL === '$' ? '₹' : CURRENCY_SYMBOL) ?>';
     window.APP_TAX_RATE = <?= (float)TAX_RATE ?>;
     window.STORE_NAME = '<?= e(STORE_NAME) ?>';
     window.STORE_UPI_ID = '<?= e($systemSettings['store_upi_id'] ?? 'bondhuchol@upi') ?>';

@@ -152,12 +152,25 @@ if ($db->isConnected()) {
     }
 }
 
-// Guarantee INR / ₹ currency is always enforced
-if (empty($systemSettings['currency_symbol']) || $systemSettings['currency_symbol'] === '$') {
+// Guarantee INR / ₹ currency is always strictly enforced and auto-repaired
+$rawSymbol = (string)($systemSettings['currency_symbol'] ?? '');
+if (empty($rawSymbol) || preg_match('/[0-9]/', $rawSymbol) || $rawSymbol === '$' || mb_strlen($rawSymbol) > 4) {
     $systemSettings['currency_symbol'] = '₹';
+    if ($db->isConnected()) {
+        try {
+            $db->execute("UPDATE `settings` SET `value_text` = '₹' WHERE `key_name` = 'currency_symbol'");
+        } catch (Exception $e) { /* silent */ }
+    }
 }
-if (empty($systemSettings['currency_code']) || $systemSettings['currency_code'] === 'USD') {
+
+$rawCode = (string)($systemSettings['currency_code'] ?? '');
+if (empty($rawCode) || preg_match('/[0-9]/', $rawCode) || $rawCode === 'USD' || mb_strlen($rawCode) > 5) {
     $systemSettings['currency_code'] = 'INR';
+    if ($db->isConnected()) {
+        try {
+            $db->execute("UPDATE `settings` SET `value_text` = 'INR' WHERE `key_name` = 'currency_code'");
+        } catch (Exception $e) { /* silent */ }
+    }
 }
 
 // Global Constants from Settings (Guarded against redefinition)
@@ -170,4 +183,5 @@ defined('EXPIRY_WARNING_DAYS') or define('EXPIRY_WARNING_DAYS', (int)$systemSett
 
 // Include Global Helper Functions
 require_once INCLUDES_PATH . '/functions.php';
+
 

@@ -165,12 +165,21 @@ class Database {
                     $this->mysqli->multi_query($sampleSql);
                     while ($this->mysqli->more_results() && $this->mysqli->next_result()) { /* flush */ }
                 }
+                try {
+                    @$this->mysqli->query("UPDATE `settings` SET `value_text` = '₹' WHERE `key_name` = 'currency_symbol' AND (`value_text` REGEXP '[0-9]' OR `value_text` = '$' OR CHAR_LENGTH(`value_text`) > 4)");
+                    @$this->mysqli->query("UPDATE `settings` SET `value_text` = 'INR' WHERE `key_name` = 'currency_code' AND (`value_text` REGEXP '[0-9]' OR `value_text` = 'USD' OR CHAR_LENGTH(`value_text`) > 5)");
+                } catch (Exception $e) { /* ignore */ }
                 return true;
+            } else {
+                try {
+                    @$this->mysqli->query("UPDATE `settings` SET `value_text` = '₹' WHERE `key_name` = 'currency_symbol' AND (`value_text` REGEXP '[0-9]' OR `value_text` = '$' OR CHAR_LENGTH(`value_text`) > 4)");
+                    @$this->mysqli->query("UPDATE `settings` SET `value_text` = 'INR' WHERE `key_name` = 'currency_code' AND (`value_text` REGEXP '[0-9]' OR `value_text` = 'USD' OR CHAR_LENGTH(`value_text`) > 5)");
+                } catch (Exception $e) { /* ignore */ }
             }
+            return false;
         } catch (Exception $e) {
             return false;
         }
-        return false;
     }
 
     private function initSqlite() {
@@ -245,6 +254,12 @@ class Database {
                     $this->seedSqliteDatabase(true);
                 }
             }
+
+            // Always enforce pure ₹ currency settings in SQLite database
+            try {
+                $this->pdo->exec("UPDATE `settings` SET `value_text` = '₹' WHERE `key_name` = 'currency_symbol' AND (`value_text` GLOB '*[0-9]*' OR `value_text` = '$' OR length(`value_text`) > 4);");
+                $this->pdo->exec("UPDATE `settings` SET `value_text` = 'INR' WHERE `key_name` = 'currency_code' AND (`value_text` GLOB '*[0-9]*' OR `value_text` = 'USD' OR length(`value_text`) > 5);");
+            } catch (Exception $e) { /* ignore */ }
         } catch (Exception $e) {
             $this->pdo = null;
             $this->error = "SQLite Init Error: " . $e->getMessage();

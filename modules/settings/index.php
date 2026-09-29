@@ -27,18 +27,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
     } else {
+        $currencySymbol = trim($_POST['currency_symbol'] ?? '₹');
+        if (empty($currencySymbol) || preg_match('/[0-9]/', $currencySymbol) || $currencySymbol === '$' || mb_strlen($currencySymbol) > 4) {
+            $currencySymbol = '₹';
+        }
+        $currencyCode = trim($_POST['currency_code'] ?? 'INR');
+        if (empty($currencyCode) || preg_match('/[0-9]/', $currencyCode) || $currencyCode === 'USD' || mb_strlen($currencyCode) > 5) {
+            $currencyCode = 'INR';
+        }
+
         $settingsToUpdate = [
-            'store_name' => trim($_POST['store_name'] ?? 'Bandhu Chol'),
+            'store_name' => trim($_POST['store_name'] ?? 'Bondhu Chol'),
             'store_tagline' => trim($_POST['store_tagline'] ?? ''),
             'store_email' => trim($_POST['store_email'] ?? ''),
             'store_phone' => trim($_POST['store_phone'] ?? ''),
             'store_address' => trim($_POST['store_address'] ?? ''),
-            'currency_symbol' => trim($_POST['currency_symbol'] ?? '₹'),
-            'currency_code' => trim($_POST['currency_code'] ?? 'INR'),
+            'currency_symbol' => $currencySymbol,
+            'currency_code' => $currencyCode,
             'tax_rate_percent' => (string)max(0, (float)($_POST['tax_rate_percent'] ?? 5.0)),
-            'expiry_alert_days_critical' => (string)max(1, (int)($_POST['expiry_alert_days_critical'] ?? 30)),
-            'expiry_alert_days_warning' => (string)max(1, (int)($_POST['expiry_alert_days_warning'] ?? 60)),
-            'default_low_stock_threshold' => (string)max(1, (int)($_POST['default_low_stock_threshold'] ?? 10))
+            'expiry_alert_days_critical' => (string)max(1, (int)($_POST['expiry_alert_days_critical'] ?? 3)),
+            'expiry_alert_days_warning' => (string)max(1, (int)($_POST['expiry_alert_days_warning'] ?? 7)),
+            'default_low_stock_threshold' => (string)max(1, (int)($_POST['default_low_stock_threshold'] ?? 15))
         ];
 
         foreach ($settingsToUpdate as $k => $v) {
@@ -63,6 +72,13 @@ if ($dbSettings) {
         $currentSettings[$s['key_name']] = $s['value_text'];
     }
 }
+if (empty($currentSettings['currency_symbol']) || preg_match('/[0-9]/', $currentSettings['currency_symbol']) || $currentSettings['currency_symbol'] === '$') {
+    $currentSettings['currency_symbol'] = '₹';
+}
+if (empty($currentSettings['currency_code']) || preg_match('/[0-9]/', $currentSettings['currency_code']) || $currentSettings['currency_code'] === 'USD') {
+    $currentSettings['currency_code'] = 'INR';
+}
+
 ?>
 
 <div class="page-header">

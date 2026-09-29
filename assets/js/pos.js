@@ -15,7 +15,11 @@ let discountType = 'amt'; // 'amt' or 'pct'
 let activePaymentMethod = 'cash';
 let lastCompletedSale = null;
 
-const currencySymbol = window.APP_CURRENCY || '₹';
+let rawCurrency = (typeof window.APP_CURRENCY === 'string' && window.APP_CURRENCY.trim()) ? window.APP_CURRENCY.trim() : '₹';
+if (/[0-9]/.test(rawCurrency) || rawCurrency === '$' || rawCurrency.length > 4) {
+    rawCurrency = '₹';
+}
+const currencySymbol = rawCurrency;
 const taxRate = parseFloat(window.APP_TAX_RATE || 5.0);
 const storeUpiId = window.STORE_UPI_ID || 'bondhuchol@upi';
 const storeName = window.STORE_NAME || 'Bondhu Chol';
