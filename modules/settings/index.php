@@ -13,6 +13,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $token = $_POST['csrf_token'] ?? '';
     if (!verifyCsrfToken($token)) {
         $errors[] = 'Security token invalid.';
+    } elseif (isset($_POST['action']) && $_POST['action'] === 'sync_catalog') {
+        if (!hasRole('admin')) {
+            $errors[] = 'Only administrators can reset and synchronize the master catalog.';
+        } else {
+            if ($db->getDriver() === 'mysqli') {
+                $db->verifyMysqlCatalog(true);
+            } else {
+                $db->seedSqliteDatabase(true);
+            }
+            setFlash('success', 'Master Catalog successfully reset and synchronized with all 83 products and 85 batches in INR (₹)!');
+            header("Location: " . BASE_URL . "/modules/settings/index.php");
+            exit;
+        }
     } else {
         $settingsToUpdate = [
             'store_name' => trim($_POST['store_name'] ?? 'Bandhu Chol'),
@@ -172,12 +185,36 @@ if ($dbSettings) {
         </div>
     </div>
 
-    <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+    <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-bottom: 1.5rem;">
         <button type="submit" class="btn btn-primary btn-lg">
             <i class="fa-solid fa-floppy-disk"></i>
             <span>Save Settings</span>
         </button>
     </div>
 </form>
+
+<?php if (hasRole('admin')): ?>
+<div class="card" style="border: 1px solid var(--border-color); margin-top: 1.5rem;">
+    <div class="card-header" style="background: rgba(239, 68, 68, 0.04);">
+        <div class="card-title">
+            <i class="fa-solid fa-arrows-rotate" style="color: var(--primary);"></i>
+            <span>Master Catalog Resync & Reset</span>
+        </div>
+    </div>
+    <div class="card-body">
+        <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.92rem;">
+            If you need to refresh your inventory database with the fresh official catalog (<strong>83 Products</strong> across Fresh Milk, Amul Products & Ice Creams, Cold Drinks, and Cadbury Chocolates with standard unit prices in INR), click below.
+        </p>
+        <form action="<?= BASE_URL ?>/modules/settings/index.php" method="POST" onsubmit="return confirm('Are you sure you want to reset and re-synchronize all 83 master catalog products, categories, and batches? Current demo transaction history will be refreshed.');">
+            <input type="hidden" name="csrf_token" value="<?= e(getCsrfToken()) ?>">
+            <input type="hidden" name="action" value="sync_catalog">
+            <button type="submit" class="btn btn-outline-danger">
+                <i class="fa-solid fa-arrows-rotate"></i>
+                <span>Reset & Reseed Fresh Master Catalog (INR ₹)</span>
+            </button>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php include INCLUDES_PATH . '/footer.php'; ?>

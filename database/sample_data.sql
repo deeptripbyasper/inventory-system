@@ -5,8 +5,6 @@
 -- Cold Drinks & Beverages, Cadbury Chocolates & Confectionery
 -- ==========================================================
 
-USE `inventory_db`;
-
 -- 1. Default User Accounts (Password: admin123)
 INSERT INTO `users` (`id`, `username`, `password`, `full_name`, `email`, `role`, `status`) VALUES
 (1, 'admin', '$2y$10$wN3tV4m.w3zR9E8K6oH60upvP1L6E/K1J.6lA0uP1XQGv4Kwq7p2a', 'Administrator', 'admin@bondhuchol.com', 'admin', 'active'),

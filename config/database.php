@@ -119,6 +119,7 @@ class Database {
 
             if ($this->mysqli && !$this->mysqli->connect_error) {
                 $this->mysqli->set_charset("utf8mb4");
+                $this->verifyMysqlCatalog();
                 return;
             } else {
                 $this->error = $this->mysqli ? $this->mysqli->connect_error : 'MySQL Connection Failed';
@@ -128,6 +129,36 @@ class Database {
 
         // If MySQLi is not available, fallback seamlessly to SQLite
         $this->initSqlite();
+    }
+
+    public function verifyMysqlCatalog($force = false) {
+        if (!$this->mysqli) return false;
+        try {
+            $needsSync = $force;
+            if (!$needsSync) {
+                $res = @$this->mysqli->query("SELECT COUNT(*) as c FROM `products` WHERE `sku` = 'MILK-AMUL-TZ-500'");
+                if (!$res || ($row = $res->fetch_assoc()) === null || (int)($row['c'] ?? 0) === 0) {
+                    $needsSync = true;
+                }
+            }
+
+            if ($needsSync) {
+                $schemaSql = @file_get_contents(dirname(__DIR__) . '/database/schema.sql');
+                if ($schemaSql) {
+                    $this->mysqli->multi_query($schemaSql);
+                    while ($this->mysqli->more_results() && $this->mysqli->next_result()) { /* flush */ }
+                }
+                $sampleSql = @file_get_contents(dirname(__DIR__) . '/database/sample_data.sql');
+                if ($sampleSql) {
+                    $this->mysqli->multi_query($sampleSql);
+                    while ($this->mysqli->more_results() && $this->mysqli->next_result()) { /* flush */ }
+                }
+                return true;
+            }
+        } catch (Exception $e) {
+            return false;
+        }
+        return false;
     }
 
     private function initSqlite() {
@@ -190,16 +221,16 @@ class Database {
             });
 
             if ($needsInit) {
-                $this->seedSqliteDatabase();
+                $this->seedSqliteDatabase(true);
             } else {
-                // Auto-sync catalog if existing SQLite database is missing the 4 new product categories
+                // Auto-sync catalog if existing SQLite database is missing the newest catalog
                 try {
-                    $cnt = $this->fetchOne("SELECT COUNT(*) as c FROM `products` WHERE `sku` LIKE 'CAD-%' OR `sku` LIKE 'AMUL-%' OR `sku` LIKE 'BEV-%' OR `sku` LIKE 'MILK-%'");
-                    if (empty($cnt) || (int)($cnt['c'] ?? 0) < 50) {
-                        $this->seedSqliteDatabase();
+                    $cnt = $this->fetchOne("SELECT COUNT(*) as c FROM `products` WHERE `sku` = 'MILK-AMUL-TZ-500'");
+                    if (empty($cnt) || (int)($cnt['c'] ?? 0) === 0) {
+                        $this->seedSqliteDatabase(true);
                     }
                 } catch (Exception $e) {
-                    $this->seedSqliteDatabase();
+                    $this->seedSqliteDatabase(true);
                 }
             }
         } catch (Exception $e) {
@@ -466,7 +497,7 @@ class Database {
     /**
      * SQLite Seeder
      */
-    public function seedSqliteDatabase() {
+    public function seedSqliteDatabase($force = false) {
         if (!$this->pdo) return;
 
         $schema = "
@@ -599,10 +630,12 @@ class Database {
         $stmt = $this->pdo->query("SELECT COUNT(*) as cnt FROM products");
         $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
         if ($row && $row['cnt'] > 0) {
-            $checkNew = $this->pdo->query("SELECT COUNT(*) as cnt FROM products WHERE sku = 'MILK-AMUL-TZ-500'");
-            $newRow = $checkNew ? $checkNew->fetch(PDO::FETCH_ASSOC) : null;
-            if ($newRow && $newRow['cnt'] > 0) {
-                return; // Already populated with newest Amul/Cadbury catalog
+            if (!$force) {
+                $checkNew = $this->pdo->query("SELECT COUNT(*) as cnt FROM products WHERE sku = 'MILK-AMUL-TZ-500'");
+                $newRow = $checkNew ? $checkNew->fetch(PDO::FETCH_ASSOC) : null;
+                if ($newRow && $newRow['cnt'] > 0) {
+                    return; // Already populated with newest Amul/Cadbury catalog
+                }
             }
             // Wipe outdated legacy data
             $this->pdo->exec("

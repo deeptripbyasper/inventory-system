@@ -5,9 +5,6 @@
 -- Engine: InnoDB, Charset: utf8mb4
 -- ==========================================================
 
-CREATE DATABASE IF NOT EXISTS `inventory_db` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `inventory_db`;
-
 -- Drop existing tables in reverse dependency order
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `stock_adjustments`;
