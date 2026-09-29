@@ -11,9 +11,10 @@ if (!defined('APP_INIT')) {
         <button type="button" class="menu-toggle-btn" id="mobileMenuBtn" aria-label="Toggle Navigation">
             <i class="fa-solid fa-bars"></i>
         </button>
-        <div class="navbar-title">
+        <div class="navbar-title" style="display: flex; align-items: center; gap: 0.5rem;">
             <span style="font-weight: 500; color: var(--text-muted);">Store:</span>
             <span style="color: var(--text-primary); font-weight: 700;"><?= e(STORE_NAME) ?></span>
+            <span class="badge badge-primary" style="font-size: 0.72rem; padding: 0.18rem 0.45rem; border-radius: 4px;" title="Active Live Build Version">v2.5</span>
         </div>
     </div>
 

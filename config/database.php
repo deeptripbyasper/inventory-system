@@ -143,6 +143,18 @@ class Database {
             }
 
             if ($needsSync) {
+                if ($force) {
+                    @$this->mysqli->query("SET FOREIGN_KEY_CHECKS = 0");
+                    @$this->mysqli->query("DELETE FROM `sale_items`");
+                    @$this->mysqli->query("DELETE FROM `sales`");
+                    @$this->mysqli->query("DELETE FROM `stock_adjustments`");
+                    @$this->mysqli->query("DELETE FROM `stock_in_logs`");
+                    @$this->mysqli->query("DELETE FROM `product_batches`");
+                    @$this->mysqli->query("DELETE FROM `products`");
+                    @$this->mysqli->query("DELETE FROM `categories`");
+                    @$this->mysqli->query("DELETE FROM `suppliers`");
+                    @$this->mysqli->query("SET FOREIGN_KEY_CHECKS = 1");
+                }
                 $schemaSql = @file_get_contents(dirname(__DIR__) . '/database/schema.sql');
                 if ($schemaSql) {
                     $this->mysqli->multi_query($schemaSql);

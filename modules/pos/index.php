@@ -78,9 +78,9 @@ $totalProductsCount = count($availableItems);
     <!-- Top Action Ribbon -->
     <div class="pos-top-ribbon">
         <div class="pos-ribbon-left">
-            <div class="pos-badge-live" title="POS Register Online and Ready">
+            <div class="pos-badge-live" title="POS Register Online and Ready (Build v2.5)">
                 <span class="live-dot"></span>
-                <span class="live-text">Register Active</span>
+                <span class="live-text">Register Active (v2.5)</span>
             </div>
             <div class="pos-clock" id="posLiveClock" title="System Time">
                 <i class="fa-regular fa-clock"></i>
