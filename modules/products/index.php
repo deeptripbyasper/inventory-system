@@ -127,7 +127,7 @@ $products = $db->fetchAll($sql, $types, $params);
                     <th>Leftover Stock</th>
                     <th>Stock Status</th>
                     <th>Nearest Expiry</th>
-                    <th>Selling Price</th>
+                    <th>Price / Unit</th>
                     <th>Inventory Value</th>
                     <th class="no-export" style="text-align: right;">Actions</th>
                 </tr>
@@ -175,7 +175,8 @@ $products = $db->fetchAll($sql, $types, $params);
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <strong style="color: var(--primary);"><?= formatCurrency($prod['default_selling_price']) ?></strong>
+                                <strong style="color: var(--primary); font-size: 0.95rem;"><?= formatCurrency($prod['default_selling_price']) ?></strong>
+                                <span style="display: block; font-size: 0.74rem; color: var(--text-muted); font-weight: 600;">/ <?= e($prod['unit']) ?></span>
                             </td>
                             <td>
                                 <span title="Cost: <?= formatCurrency($prod['stock_cost_value']) ?>">

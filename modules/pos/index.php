@@ -211,8 +211,11 @@ $totalProductsCount = count($availableItems);
 
                             <div class="pos-card-bottom">
                                 <div class="pos-product-price-wrapper">
-                                    <span class="pos-product-price"><?= formatCurrency($item['price']) ?></span>
-                                    <span class="pos-unit-tag">/ <?= e($item['unit']) ?></span>
+                                    <span class="pos-unit-price-label">Price per Unit</span>
+                                    <div class="pos-price-num-wrap">
+                                        <span class="pos-product-price"><?= formatCurrency($item['price']) ?></span>
+                                        <span class="pos-unit-tag">/ <?= e($item['unit']) ?></span>
+                                    </div>
                                 </div>
                                 
                                 <div class="pos-exp-badge <?= $expInfo['badge_class'] ?>" title="Batch <?= e($item['batch_no']) ?>: <?= $expInfo['label'] ?>">
@@ -555,8 +558,8 @@ $totalProductsCount = count($availableItems);
                             <th>Product Details</th>
                             <th>Batch / Expiry</th>
                             <th style="text-align: center;">Qty</th>
-                            <th style="text-align: right;">Rate</th>
-                            <th style="text-align: right;">Total</th>
+                            <th style="text-align: right;">Price per Unit</th>
+                            <th style="text-align: right;">Total Amount</th>
                         </tr>
                     </thead>
                     <tbody id="previewModalTableBody">

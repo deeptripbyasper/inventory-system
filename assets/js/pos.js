@@ -436,10 +436,11 @@ function openInvoicePreviewModal() {
                 <td style="padding: 0.45rem 0.6rem; text-align: center; font-weight: 700;">
                     <span class="badge badge-info" style="font-size: 0.75rem;">${it.qty} ${escapeHtml(it.unit)}</span>
                 </td>
-                <td style="padding: 0.45rem 0.6rem; text-align: right; font-size: 0.8rem; color: var(--text-secondary);">
-                    ${currencySymbol}${it.unit_price.toFixed(2)}
+                <td style="padding: 0.5rem 0.65rem; text-align: right; font-size: 0.85rem;">
+                    <strong style="color: var(--text-primary); font-size: 0.92rem;">${currencySymbol}${it.unit_price.toFixed(2)}</strong>
+                    <span style="display: block; font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">per ${escapeHtml(it.unit)}</span>
                 </td>
-                <td style="padding: 0.45rem 0.6rem; text-align: right; font-weight: 700; color: var(--primary);">
+                <td style="padding: 0.5rem 0.65rem; text-align: right; font-weight: 800; color: var(--primary); font-size: 0.95rem;">
                     ${currencySymbol}${lineTot.toFixed(2)}
                 </td>
             </tr>
@@ -585,9 +586,14 @@ function renderCart() {
                         <span class="cart-unit-label">${escapeHtml(item.unit)}</span>
                     </div>
                     <div class="cart-price-col">
-                        <span class="cart-unit-rate">@ ${currencySymbol}${item.unit_price.toFixed(2)} / ${escapeHtml(item.unit)}</span>
+                        <div class="cart-unit-rate-badge">
+                            <span class="rate-lbl">Rate:</span> <strong>${currencySymbol}${item.unit_price.toFixed(2)}</strong> / ${escapeHtml(item.unit)}
+                        </div>
                         <div class="cart-item-total">
                             ${currencySymbol}${itemTotal.toFixed(2)}
+                        </div>
+                        <div class="cart-calc-line">
+                            ${item.qty} ${escapeHtml(item.unit)} × ${currencySymbol}${item.unit_price.toFixed(2)}
                         </div>
                     </div>
                 </div>
@@ -608,7 +614,9 @@ function renderCart() {
                 <td style="text-align: center;">
                     <span class="badge badge-primary" style="font-size: 0.72rem; padding: 0.1rem 0.35rem;">${item.qty} ${escapeHtml(item.unit)}</span>
                 </td>
-                <td style="text-align: right; font-size: 0.75rem; color: var(--text-secondary);">${currencySymbol}${item.unit_price.toFixed(2)}</td>
+                <td style="text-align: right; font-size: 0.75rem; color: var(--text-secondary);">
+                    <strong>${currencySymbol}${item.unit_price.toFixed(2)}</strong> / ${escapeHtml(item.unit)}
+                </td>
                 <td style="text-align: right; font-weight: 700; color: var(--primary); font-size: 0.8rem;">${currencySymbol}${itemTotal.toFixed(2)}</td>
             </tr>
         `;

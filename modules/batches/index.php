@@ -115,7 +115,7 @@ $batches = $db->fetchAll($sql);
                     <th>Sold Qty</th>
                     <th>Leftover Stock</th>
                     <th>Cost Value</th>
-                    <th>Selling Price</th>
+                    <th>Selling Rate</th>
                     <th>Status</th>
                     <th class="no-export" style="text-align: right;">Action</th>
                 </tr>
@@ -152,7 +152,10 @@ $batches = $db->fetchAll($sql);
                                 </strong> <small><?= e($b['unit']) ?></small>
                             </td>
                             <td><?= formatCurrency($leftoverValue) ?></td>
-                            <td><strong><?= formatCurrency($b['selling_price']) ?></strong></td>
+                            <td>
+                                <strong><?= formatCurrency($b['selling_price']) ?></strong>
+                                <small style="color: var(--text-muted); display: block; font-size: 0.74rem;">/ <?= e($b['unit']) ?></small>
+                            </td>
                             <td>
                                 <?php if ($b['current_quantity'] <= 0): ?>
                                     <span class="badge badge-secondary">Sold Out</span>
