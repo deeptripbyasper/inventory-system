@@ -58,7 +58,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $categoryId, $sku, $barcode, $name, $description, $unit, $minStock, $defaultPrice, $status, $productId
             ]);
 
-            setFlash('success', "Product '{$name}' updated successfully!");
+            $batchMsg = "";
+            if (!empty($_POST['update_batches_price'])) {
+                $db->execute("UPDATE `product_batches` SET `selling_price` = ? WHERE `product_id` = ? AND `status` = 'available'", "di", [$defaultPrice, $productId]);
+                $batchMsg = " and updated selling rate to " . formatCurrency($defaultPrice) . " for active stock batches";
+            }
+
+            setFlash('success', "Product '{$name}' updated successfully{$batchMsg}!");
             header("Location: " . BASE_URL . "/modules/products/view.php?id=" . $productId);
             exit;
         }
@@ -159,6 +165,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="form-group">
                     <label class="form-label" for="default_selling_price">Default Selling Price (<?= e(CURRENCY_SYMBOL) ?>)</label>
                     <input type="number" step="0.01" min="0" id="default_selling_price" name="default_selling_price" class="form-control" value="<?= e($_POST['default_selling_price'] ?? $product['default_selling_price']) ?>" required>
+                    <div style="margin-top: 0.5rem;">
+                        <label style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.82rem; color: var(--text-secondary); cursor: pointer; line-height: 1.35;">
+                            <input type="checkbox" name="update_batches_price" value="1" checked style="margin-top: 2px;">
+                            <span><strong>Sync Active Stock:</strong> Update selling price for all active batches of this product to reflect immediately at POS terminal.</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="form-group">

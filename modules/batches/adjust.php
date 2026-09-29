@@ -36,6 +36,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCsrfToken($token)) {
         $errors[] = 'Security token invalid. Please refresh.';
     } else {
+        $action = $_POST['form_action'] ?? 'adjust_stock';
+
+        if ($action === 'update_price') {
+        $newSellingPrice = (float)($_POST['selling_price'] ?? 0);
+        if ($newSellingPrice <= 0) {
+            $errors[] = 'Selling price must be greater than 0.';
+        } else {
+            $db->execute("UPDATE `product_batches` SET `selling_price` = ? WHERE `id` = ?", "di", [$newSellingPrice, $batchId]);
+            setFlash('success', "Batch {$batch['batch_no']} selling price updated to " . formatCurrency($newSellingPrice) . " / {$batch['unit']} successfully!");
+            header("Location: " . BASE_URL . "/modules/batches/adjust.php?batch_id=" . $batchId);
+            exit;
+        }
+    } else {
         $type = $_POST['adjustment_type'] ?? 'subtraction';
         $quantity = (int)($_POST['quantity'] ?? 0);
         $reason = $_POST['reason'] ?? 'expired';
@@ -83,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header("Location: " . BASE_URL . "/modules/products/view.php?id=" . $batch['product_id']);
             exit;
         }
+    }
     }
 }
 
@@ -174,9 +188,39 @@ $adjustmentLogs = $db->fetchAll("
     </div>
 </div>
 
+<!-- Quick Selling Price Edit Card -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="fa-solid fa-indian-rupee-sign" style="color: var(--primary);"></i>
+            <span>Batch Selling Price (POS Rate)</span>
+        </div>
+    </div>
+    <div class="card-body">
+        <form action="<?= BASE_URL ?>/modules/batches/adjust.php?batch_id=<?= $batchId ?>" method="POST" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+            <input type="hidden" name="csrf_token" value="<?= e(getCsrfToken()) ?>">
+            <input type="hidden" name="form_action" value="update_price">
+            
+            <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+                <label class="form-label" for="selling_price">Selling Price per <?= e($batch['unit']) ?> (<?= e(CURRENCY_SYMBOL) ?>)</label>
+                <input type="number" step="0.01" min="0.01" id="selling_price" name="selling_price" class="form-control" value="<?= e($batch['selling_price']) ?>" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="margin-bottom: 0;">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span>Update Batch Price</span>
+            </button>
+        </form>
+        <small style="color: var(--text-muted); display: block; margin-top: 0.5rem;">
+            <i class="fa-solid fa-circle-info"></i> This changes the selling price for <strong>Batch <?= e($batch['batch_no']) ?></strong> immediately at the POS checkout terminal.
+        </small>
+    </div>
+</div>
+
 <!-- Adjustment Form -->
 <form action="<?= BASE_URL ?>/modules/batches/adjust.php?batch_id=<?= $batchId ?>" method="POST">
     <input type="hidden" name="csrf_token" value="<?= e(getCsrfToken()) ?>">
+    <input type="hidden" name="form_action" value="adjust_stock">
 
     <div class="card">
         <div class="card-header">
