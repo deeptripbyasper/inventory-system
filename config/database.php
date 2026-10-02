@@ -119,7 +119,7 @@ class Database {
 
             if ($this->mysqli && !$this->mysqli->connect_error) {
                 $this->mysqli->set_charset("utf8mb4");
-                $this->verifyMysqlCatalog();
+                $this->initMysqlTables();
                 return;
             } else {
                 $this->error = $this->mysqli ? $this->mysqli->connect_error : 'MySQL Connection Failed';
@@ -131,30 +131,60 @@ class Database {
         $this->initSqlite();
     }
 
-    public function verifyMysqlCatalog($force = false) {
+    /**
+     * Non-destructive MySQL Schema & Defaults Initializer
+     */
+    public function initMysqlTables() {
         if (!$this->mysqli) return false;
         try {
-            $needsSync = $force;
-            if (!$needsSync) {
-                $res = @$this->mysqli->query("SELECT COUNT(*) as c FROM `products` WHERE `sku` = 'MILK-AMUL-TZ-500'");
-                if (!$res || ($row = $res->fetch_assoc()) === null || (int)($row['c'] ?? 0) === 0) {
-                    $needsSync = true;
+            if (!$this->tableExists('products') || !$this->tableExists('users')) {
+                $schemaSql = @file_get_contents(dirname(__DIR__) . '/database/schema.sql');
+                if ($schemaSql) {
+                    $this->mysqli->multi_query($schemaSql);
+                    while ($this->mysqli->more_results() && $this->mysqli->next_result()) { /* flush */ }
                 }
             }
 
-            if ($needsSync) {
-                if ($force) {
-                    @$this->mysqli->query("SET FOREIGN_KEY_CHECKS = 0");
-                    @$this->mysqli->query("DELETE FROM `sale_items`");
-                    @$this->mysqli->query("DELETE FROM `sales`");
-                    @$this->mysqli->query("DELETE FROM `stock_adjustments`");
-                    @$this->mysqli->query("DELETE FROM `stock_in_logs`");
-                    @$this->mysqli->query("DELETE FROM `product_batches`");
-                    @$this->mysqli->query("DELETE FROM `products`");
-                    @$this->mysqli->query("DELETE FROM `categories`");
-                    @$this->mysqli->query("DELETE FROM `suppliers`");
-                    @$this->mysqli->query("SET FOREIGN_KEY_CHECKS = 1");
-                }
+            // Seed default admin and settings only if users table is completely empty
+            $userCheck = @$this->mysqli->query("SELECT COUNT(*) as c FROM `users`");
+            $userRow = $userCheck ? $userCheck->fetch_assoc() : null;
+            if (!$userRow || (int)($userRow['c'] ?? 0) === 0) {
+                $adminPass = password_hash('admin123', PASSWORD_DEFAULT);
+                @$this->mysqli->query("
+                    INSERT IGNORE INTO `users` (`id`, `username`, `password`, `full_name`, `email`, `role`, `status`) VALUES
+                    (1, 'admin', '{$adminPass}', 'Administrator', 'admin@bondhuchol.com', 'admin', 'active'),
+                    (2, 'cashier', '{$adminPass}', 'Rahul Sharma (Cashier)', 'cashier@bondhuchol.com', 'cashier', 'active')
+                ");
+            }
+
+            // Ensure currency settings are healthy without breaking other settings
+            try {
+                @$this->mysqli->query("INSERT IGNORE INTO `settings` (`key_name`, `value_text`) VALUES ('currency_symbol', '₹'), ('currency_code', 'INR'), ('tax_rate_percent', '5.00')");
+                @$this->mysqli->query("UPDATE `settings` SET `value_text` = '₹' WHERE `key_name` = 'currency_symbol' AND (`value_text` REGEXP '[0-9]' OR `value_text` = '$' OR CHAR_LENGTH(`value_text`) > 4)");
+                @$this->mysqli->query("UPDATE `settings` SET `value_text` = 'INR' WHERE `key_name` = 'currency_code' AND (`value_text` REGEXP '[0-9]' OR `value_text` = 'USD' OR CHAR_LENGTH(`value_text`) > 5)");
+            } catch (Exception $e) { /* ignore */ }
+
+            return true;
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    public function verifyMysqlCatalog($force = false) {
+        if (!$this->mysqli) return false;
+        try {
+            if ($force) {
+                @$this->mysqli->query("SET FOREIGN_KEY_CHECKS = 0");
+                @$this->mysqli->query("DELETE FROM `sale_items`");
+                @$this->mysqli->query("DELETE FROM `sales`");
+                @$this->mysqli->query("DELETE FROM `stock_adjustments`");
+                @$this->mysqli->query("DELETE FROM `stock_in_logs`");
+                @$this->mysqli->query("DELETE FROM `product_batches`");
+                @$this->mysqli->query("DELETE FROM `products`");
+                @$this->mysqli->query("DELETE FROM `categories`");
+                @$this->mysqli->query("DELETE FROM `suppliers`");
+                @$this->mysqli->query("SET FOREIGN_KEY_CHECKS = 1");
+
                 $schemaSql = @file_get_contents(dirname(__DIR__) . '/database/schema.sql');
                 if ($schemaSql) {
                     $this->mysqli->multi_query($schemaSql);
@@ -171,12 +201,8 @@ class Database {
                 } catch (Exception $e) { /* ignore */ }
                 return true;
             } else {
-                try {
-                    @$this->mysqli->query("UPDATE `settings` SET `value_text` = '₹' WHERE `key_name` = 'currency_symbol' AND (`value_text` REGEXP '[0-9]' OR `value_text` = '$' OR CHAR_LENGTH(`value_text`) > 4)");
-                    @$this->mysqli->query("UPDATE `settings` SET `value_text` = 'INR' WHERE `key_name` = 'currency_code' AND (`value_text` REGEXP '[0-9]' OR `value_text` = 'USD' OR CHAR_LENGTH(`value_text`) > 5)");
-                } catch (Exception $e) { /* ignore */ }
+                return $this->initMysqlTables();
             }
-            return false;
         } catch (Exception $e) {
             return false;
         }
@@ -241,19 +267,8 @@ class Database {
                 return implode('', $args);
             });
 
-            if ($needsInit) {
-                $this->seedSqliteDatabase(true);
-            } else {
-                // Auto-sync catalog if existing SQLite database is missing the newest catalog
-                try {
-                    $cnt = $this->fetchOne("SELECT COUNT(*) as c FROM `products` WHERE `sku` = 'MILK-AMUL-TZ-500'");
-                    if (empty($cnt) || (int)($cnt['c'] ?? 0) === 0) {
-                        $this->seedSqliteDatabase(true);
-                    }
-                } catch (Exception $e) {
-                    $this->seedSqliteDatabase(true);
-                }
-            }
+            // Safely ensure SQLite tables exist without wiping user data
+            $this->ensureSqliteTables($needsInit);
 
             // Always enforce pure ₹ currency settings in SQLite database
             try {
@@ -522,9 +537,9 @@ class Database {
     }
 
     /**
-     * SQLite Seeder
+     * Non-destructive SQLite Schema & Defaults Initializer
      */
-    public function seedSqliteDatabase($force = false) {
+    public function ensureSqliteTables($needsInit = false) {
         if (!$this->pdo) return;
 
         $schema = "
@@ -653,29 +668,58 @@ class Database {
 
         $this->pdo->exec($schema);
 
-        // Check if products already exist and verify it has the latest catalog
-        $stmt = $this->pdo->query("SELECT COUNT(*) as cnt FROM products");
+        // Seed default users & settings only if users table is empty
+        $stmt = $this->pdo->query("SELECT COUNT(*) as cnt FROM users");
         $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
-        if ($row && $row['cnt'] > 0) {
-            if (!$force) {
-                $checkNew = $this->pdo->query("SELECT COUNT(*) as cnt FROM products WHERE sku = 'MILK-AMUL-TZ-500'");
-                $newRow = $checkNew ? $checkNew->fetch(PDO::FETCH_ASSOC) : null;
-                if ($newRow && $newRow['cnt'] > 0) {
-                    return; // Already populated with newest Amul/Cadbury catalog
-                }
-            }
-            // Wipe outdated legacy data
+        if (!$row || (int)($row['cnt'] ?? 0) === 0) {
+            $adminPass = password_hash('admin123', PASSWORD_DEFAULT);
             $this->pdo->exec("
-                DELETE FROM sale_items;
-                DELETE FROM sales;
-                DELETE FROM stock_adjustments;
-                DELETE FROM stock_in_logs;
-                DELETE FROM product_batches;
-                DELETE FROM products;
-                DELETE FROM categories;
-                DELETE FROM suppliers;
+                INSERT OR IGNORE INTO users (id, username, password, full_name, email, role, status) VALUES
+                (1, 'admin', '{$adminPass}', 'Administrator', 'admin@bondhuchol.com', 'admin', 'active'),
+                (2, 'cashier', '{$adminPass}', 'Rahul Sharma (Cashier)', 'cashier@bondhuchol.com', 'cashier', 'active');
+
+                INSERT OR IGNORE INTO settings (key_name, value_text) VALUES
+                ('store_name', 'Bondhu Chol'),
+                ('store_tagline', 'Fresh Milk, Amul Dairy & Ice Creams, Cold Drinks & Cadbury Chocolates'),
+                ('store_email', 'contact@bondhuchol.com'),
+                ('store_phone', '+91 98765 00000 / +91 98300 00000'),
+                ('store_address', '39, Satyen Roy Road, Behala, Kolkata - 700034.'),
+                ('store_gstin', '19AAAAA0000A1Z5'),
+                ('store_fssai', '10019021004321'),
+                ('store_upi_id', 'bondhuchol@upi'),
+                ('currency_symbol', '₹'),
+                ('currency_code', 'INR'),
+                ('tax_rate_percent', '5.00'),
+                ('expiry_alert_days_critical', '3'),
+                ('expiry_alert_days_warning', '7'),
+                ('default_low_stock_threshold', '15');
             ");
         }
+    }
+
+    /**
+     * Master Catalog SQLite Seeder (Only executed when explicitly forced)
+     */
+    public function seedSqliteDatabase($force = false) {
+        if (!$this->pdo) return;
+
+        $this->ensureSqliteTables(true);
+
+        if (!$force) {
+            return;
+        }
+
+        // Wipe existing catalog for clean reseed
+        $this->pdo->exec("
+            DELETE FROM sale_items;
+            DELETE FROM sales;
+            DELETE FROM stock_adjustments;
+            DELETE FROM stock_in_logs;
+            DELETE FROM product_batches;
+            DELETE FROM products;
+            DELETE FROM categories;
+            DELETE FROM suppliers;
+        ");
 
         // Seed Users
         $adminPass = password_hash('admin123', PASSWORD_DEFAULT);

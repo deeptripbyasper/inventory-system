@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->execute("
                     INSERT INTO `stock_in_logs` (`product_id`, `batch_id`, `supplier_id`, `user_id`, `quantity`, `purchase_price`, `selling_price`, `invoice_reference`, `notes`)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ", "iiiiddsss", [
+                ", "iiiiiddss", [
                     $productId, $batchId, $supplierId, $currentUser['id'] ?? null, $quantity, $purchasePrice, $sellingPrice, $invoiceRef, $notes
                 ]);
 

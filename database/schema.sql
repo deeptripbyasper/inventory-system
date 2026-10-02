@@ -5,22 +5,8 @@
 -- Engine: InnoDB, Charset: utf8mb4
 -- ==========================================================
 
--- Drop existing tables in reverse dependency order
-SET FOREIGN_KEY_CHECKS = 0;
-DROP TABLE IF EXISTS `stock_adjustments`;
-DROP TABLE IF EXISTS `stock_in_logs`;
-DROP TABLE IF EXISTS `sale_items`;
-DROP TABLE IF EXISTS `sales`;
-DROP TABLE IF EXISTS `product_batches`;
-DROP TABLE IF EXISTS `products`;
-DROP TABLE IF EXISTS `suppliers`;
-DROP TABLE IF EXISTS `categories`;
-DROP TABLE IF EXISTS `settings`;
-DROP TABLE IF EXISTS `users`;
-SET FOREIGN_KEY_CHECKS = 1;
-
 -- 1. Users Table
-CREATE TABLE `users` (
+CREATE TABLE IF NOT EXISTS `users` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `username` VARCHAR(50) NOT NULL UNIQUE,
     `password` VARCHAR(255) NOT NULL,
@@ -33,7 +19,7 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2. Categories Table
-CREATE TABLE `categories` (
+CREATE TABLE IF NOT EXISTS `categories` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `name` VARCHAR(100) NOT NULL UNIQUE,
     `description` TEXT NULL,
@@ -41,7 +27,7 @@ CREATE TABLE `categories` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 3. Suppliers Table
-CREATE TABLE `suppliers` (
+CREATE TABLE IF NOT EXISTS `suppliers` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `name` VARCHAR(150) NOT NULL,
     `contact_person` VARCHAR(100) NULL,
@@ -52,7 +38,7 @@ CREATE TABLE `suppliers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 4. Products Table (Master Product Details)
-CREATE TABLE `products` (
+CREATE TABLE IF NOT EXISTS `products` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `category_id` INT NULL,
     `sku` VARCHAR(60) NOT NULL UNIQUE,
@@ -69,7 +55,7 @@ CREATE TABLE `products` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 5. Product Batches Table (Tracks Expiry Date, Purchase Cost, Initial & Leftover Stock per Batch)
-CREATE TABLE `product_batches` (
+CREATE TABLE IF NOT EXISTS `product_batches` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `product_id` INT NOT NULL,
     `supplier_id` INT NULL,
@@ -89,7 +75,7 @@ CREATE TABLE `product_batches` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 6. Sales Table
-CREATE TABLE `sales` (
+CREATE TABLE IF NOT EXISTS `sales` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `invoice_no` VARCHAR(50) NOT NULL UNIQUE,
     `user_id` INT NULL,
@@ -111,7 +97,7 @@ CREATE TABLE `sales` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 7. Sale Items Table (Stores Sold Item, Batch Link, Cost Price & Selling Price for Profit Auditing)
-CREATE TABLE `sale_items` (
+CREATE TABLE IF NOT EXISTS `sale_items` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `sale_id` INT NOT NULL,
     `product_id` INT NOT NULL,
@@ -127,7 +113,7 @@ CREATE TABLE `sale_items` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 8. Stock Adjustments Table (For Expired Stock Write-off, Spoilage, Damage, Audits)
-CREATE TABLE `stock_adjustments` (
+CREATE TABLE IF NOT EXISTS `stock_adjustments` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `product_id` INT NOT NULL,
     `batch_id` INT NULL,
@@ -143,7 +129,7 @@ CREATE TABLE `stock_adjustments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 9. Stock-In / Purchase History Table
-CREATE TABLE `stock_in_logs` (
+CREATE TABLE IF NOT EXISTS `stock_in_logs` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `product_id` INT NOT NULL,
     `batch_id` INT NOT NULL,
@@ -162,7 +148,7 @@ CREATE TABLE `stock_in_logs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 10. System Settings Table
-CREATE TABLE `settings` (
+CREATE TABLE IF NOT EXISTS `settings` (
     `key_name` VARCHAR(50) PRIMARY KEY,
     `value_text` TEXT NOT NULL,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

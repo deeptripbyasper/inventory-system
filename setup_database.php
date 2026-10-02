@@ -30,6 +30,8 @@ if (file_exists($configFile)) {
     }
 }
 
+$force = in_array('--force', $argv ?? []) || in_array('-f', $argv ?? []);
+
 echo "1. Initializing MySQL Database..." . PHP_EOL;
 mysqli_report(MYSQLI_REPORT_OFF);
 $mysqli = @new mysqli($host, $username, $password, '', $port);
@@ -47,20 +49,32 @@ if ($mysqli->connect_error) {
     $mysqli->multi_query($schemaSql);
     while ($mysqli->more_results() && $mysqli->next_result()) { /* flush */ }
 
-    echo "Running Sample Data on MySQL..." . PHP_EOL;
-    $sampleSql = file_get_contents(__DIR__ . '/database/sample_data.sql');
-    $mysqli->multi_query($sampleSql);
-    while ($mysqli->more_results() && $mysqli->next_result()) { /* flush */ }
+    // Check if products exist; only seed sample data if empty or forced
+    $prodCheck = @$mysqli->query("SELECT COUNT(*) as c FROM `products`");
+    $prodRow = $prodCheck ? $prodCheck->fetch_assoc() : null;
+    $isProdEmpty = (!$prodRow || (int)($prodRow['c'] ?? 0) === 0);
 
-    echo "MySQL initialized successfully with Amul, Cold Drinks, and Cadbury dataset!" . PHP_EOL;
+    if ($force || $isProdEmpty) {
+        echo "Running Sample Data on MySQL..." . PHP_EOL;
+        $sampleSql = file_get_contents(__DIR__ . '/database/sample_data.sql');
+        $mysqli->multi_query($sampleSql);
+        while ($mysqli->more_results() && $mysqli->next_result()) { /* flush */ }
+        echo "MySQL initialized with master catalog dataset!" . PHP_EOL;
+    } else {
+        echo "MySQL tables exist with active data. Preserving live data." . PHP_EOL;
+    }
     $mysqli->close();
 }
 
-// Re-initialize SQLite too
+// 2. Initialize SQLite Database
 echo "2. Initializing SQLite Database..." . PHP_EOL;
 $sqlitePath = __DIR__ . '/database/inventory_db.sqlite';
-if (file_exists($sqlitePath)) {
+$sqliteExists = file_exists($sqlitePath) && filesize($sqlitePath) > 0;
+
+if ($force && $sqliteExists) {
+    echo "Force reseed specified: resetting SQLite database." . PHP_EOL;
     @unlink($sqlitePath);
+    $sqliteExists = false;
 }
 
 // Instantiate fresh Database object in SQLite mode and seed
@@ -74,8 +88,13 @@ $refProp->setAccessible(true);
 $refProp->setValue(null, null);
 
 $sqliteDb = Database::getInstance();
-$sqliteDb->seedSqliteDatabase(true);
-echo "SQLite database successfully seeded with all 83 products and 85 batches at: {$sqlitePath}" . PHP_EOL;
+if ($force || !$sqliteExists) {
+    $sqliteDb->seedSqliteDatabase(true);
+    echo "SQLite database successfully seeded with master catalog at: {$sqlitePath}" . PHP_EOL;
+} else {
+    $sqliteDb->ensureSqliteTables(false);
+    echo "SQLite database verified and active data preserved at: {$sqlitePath}" . PHP_EOL;
+}
 
 if ($prevDriver !== false && !empty($prevDriver)) {
     putenv("DB_DRIVER={$prevDriver}");
