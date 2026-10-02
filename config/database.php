@@ -209,7 +209,7 @@ class Database {
     }
 
     private function initSqlite() {
-        $dbPath = dirname(__DIR__) . '/database/inventory_db.sqlite';
+        $dbPath = getenv('DB_PATH') ?: (dirname(__DIR__) . '/database/inventory_db.sqlite');
         $needsInit = !file_exists($dbPath) || filesize($dbPath) === 0;
 
         try {

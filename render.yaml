@@ -13,5 +13,4 @@ services:
         value: "false"
       - key: APP_TIMEZONE
         value: Asia/Kolkata
-      - key: DB_DRIVER
-        value: sqlite
+

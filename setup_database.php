@@ -68,7 +68,7 @@ if ($mysqli->connect_error) {
 
 // 2. Initialize SQLite Database
 echo "2. Initializing SQLite Database..." . PHP_EOL;
-$sqlitePath = __DIR__ . '/database/inventory_db.sqlite';
+$sqlitePath = getenv('DB_PATH') ?: (__DIR__ . '/database/inventory_db.sqlite');
 $sqliteExists = file_exists($sqlitePath) && filesize($sqlitePath) > 0;
 
 if ($force && $sqliteExists) {
