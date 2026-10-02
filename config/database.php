@@ -115,15 +115,32 @@ class Database {
         // Try MySQLi first if driver is mysqli
         if ($this->driver === 'mysqli') {
             mysqli_report(MYSQLI_REPORT_OFF);
-            $this->mysqli = @new mysqli($this->host, $this->username, $this->password, $this->database, $this->port);
+            $this->mysqli = mysqli_init();
+            if ($this->mysqli) {
+                $this->mysqli->options(MYSQLI_OPT_CONNECT_TIMEOUT, 10);
+                
+                // TiDB Serverless & Cloud MySQL (port 4000, tidbcloud, aiven, or remote) requires SSL
+                $isCloudOrTiDb = ($this->port == 4000 || stripos($this->host, 'tidb') !== false || stripos($this->host, 'aiven') !== false || getenv('DB_SSL') === 'true');
+                $clientFlags = $isCloudOrTiDb ? MYSQLI_CLIENT_SSL : 0;
 
-            if ($this->mysqli && !$this->mysqli->connect_error) {
-                $this->mysqli->set_charset("utf8mb4");
-                $this->initMysqlTables();
-                return;
-            } else {
-                $this->error = $this->mysqli ? $this->mysqli->connect_error : 'MySQL Connection Failed';
-                $this->mysqli = null;
+                $connected = @$this->mysqli->real_connect($this->host, $this->username, $this->password, $this->database, $this->port, null, $clientFlags);
+                
+                if (!$connected && $clientFlags !== 0) {
+                    // Try without SSL flag if initial failed
+                    $connected = @$this->mysqli->real_connect($this->host, $this->username, $this->password, $this->database, $this->port);
+                } elseif (!$connected && $clientFlags === 0 && $this->host !== 'localhost' && $this->host !== '127.0.0.1') {
+                    // Try with SSL flag if remote host failed
+                    $connected = @$this->mysqli->real_connect($this->host, $this->username, $this->password, $this->database, $this->port, null, MYSQLI_CLIENT_SSL);
+                }
+
+                if ($connected && !$this->mysqli->connect_error) {
+                    $this->mysqli->set_charset("utf8mb4");
+                    $this->initMysqlTables();
+                    return;
+                } else {
+                    $this->error = $this->mysqli->connect_error ?: 'MySQL Connection Failed';
+                    $this->mysqli = null;
+                }
             }
         }
 

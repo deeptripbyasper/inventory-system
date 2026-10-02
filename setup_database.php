@@ -34,10 +34,19 @@ $force = in_array('--force', $argv ?? []) || in_array('-f', $argv ?? []);
 
 echo "1. Initializing MySQL Database..." . PHP_EOL;
 mysqli_report(MYSQLI_REPORT_OFF);
-$mysqli = @new mysqli($host, $username, $password, '', $port);
+$mysqli = mysqli_init();
+$isCloudOrTiDb = ($port == 4000 || stripos($host, 'tidb') !== false || stripos($host, 'aiven') !== false || getenv('DB_SSL') === 'true');
+$clientFlags = $isCloudOrTiDb ? MYSQLI_CLIENT_SSL : 0;
 
-if ($mysqli->connect_error) {
-    echo "MySQL connection failed: " . $mysqli->connect_error . PHP_EOL;
+$connected = @$mysqli->real_connect($host, $username, $password, '', $port, null, $clientFlags);
+if (!$connected && $clientFlags !== 0) {
+    $connected = @$mysqli->real_connect($host, $username, $password, '', $port);
+} elseif (!$connected && $clientFlags === 0 && $host !== 'localhost' && $host !== '127.0.0.1') {
+    $connected = @$mysqli->real_connect($host, $username, $password, '', $port, null, MYSQLI_CLIENT_SSL);
+}
+
+if (!$connected || $mysqli->connect_error) {
+    echo "MySQL connection failed: " . ($mysqli->connect_error ?: 'Connection timeout') . PHP_EOL;
     echo "Falling back to SQLite only." . PHP_EOL;
 } else {
     $dbNameEscaped = preg_replace('/[^a-zA-Z0-9_]/', '', $database);
