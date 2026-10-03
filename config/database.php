@@ -50,12 +50,12 @@ class Database {
     private $driver = 'mysqli'; // 'mysqli' or 'sqlite'
     private $error = '';
 
-    // MySQL Connection Settings
-    private $host = 'localhost';
-    private $username = 'root';
-    private $password = '';
-    private $database = 'inventory_db';
-    private $port = 3306;
+    // MySQL Connection Settings (Default Production TiDB Cloud Cluster)
+    private $host = 'gateway01.ap-northeast-1.prod.aws.tidbcloud.com';
+    private $username = 'K7kGYdYzup79K6J.root';
+    private $password = 'vHsQYZ4P19RRw1x7';
+    private $database = 'test';
+    private $port = 4000;
 
     private function __construct() {
         // 1. Load custom db config if available
@@ -112,7 +112,7 @@ class Database {
         $envDb = getenv('DB_DATABASE') ?: getenv('DB_NAME');
         if (!empty($envDb)) $this->database = $envDb;
 
-        // Try MySQLi first if driver is mysqli
+        // Try MySQLi when driver is mysqli
         if ($this->driver === 'mysqli') {
             mysqli_report(MYSQLI_REPORT_OFF);
             $isCloudOrTiDb = ($this->port == 4000 || stripos($this->host, 'tidb') !== false || stripos($this->host, 'aiven') !== false || getenv('DB_SSL') === 'true');
@@ -152,16 +152,12 @@ class Database {
                 }
             }
 
-            // If remote host or explicit mysqli is configured, DO NOT silently write to ephemeral SQLite
-            $isRemoteHost = (!empty($this->host) && $this->host !== 'localhost' && $this->host !== '127.0.0.1');
-            $hasExplicitMysqlEnv = (!empty(getenv('DB_HOST')) || !empty(getenv('DATABASE_URL')) || getenv('DB_DRIVER') === 'mysqli');
-            if ($isRemoteHost || $hasExplicitMysqlEnv) {
-                error_log("CRITICAL: Failed to connect to MySQL/TiDB database at {$this->host}:{$this->port}. Error: " . $this->error);
-                return; // Preserve remote driver state and prevent data loss on ephemeral filesystem
-            }
+            // mysqli mode NEVER degrades to ephemeral SQLite
+            error_log("CRITICAL: Failed to connect to MySQL/TiDB database at {$this->host}:{$this->port}. Error: " . $this->error);
+            return;
         }
 
-        // If local environment without remote DB, use SQLite
+        // Only explicitly configured sqlite driver uses SQLite
         $this->initSqlite();
     }
 

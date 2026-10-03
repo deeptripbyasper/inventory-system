@@ -12,12 +12,6 @@ mkdir -p /var/www/html/database /var/www/html/config /var/www/html/assets
 chown -R www-data:www-data /var/www/html/database /var/www/html/config /var/www/html/assets
 chmod -R 777 /var/www/html/database /var/www/html/config
 
-# Run database setup to guarantee fresh catalog and schema
-echo "[INIT] Initializing database and verifying catalog..."
-php /var/www/html/setup_database.php || true
-chown -R www-data:www-data /var/www/html/database /var/www/html/config
-chmod -R 777 /var/www/html/database /var/www/html/config
-
 echo "[INIT] Starting Apache web server on port ${HTTP_PORT}..."
 exec apache2-foreground
 
