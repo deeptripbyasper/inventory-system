@@ -18,12 +18,12 @@ $message = '';
 $messageType = '';
 $isInstalled = false;
 
-// Default connection settings (prioritize .env, then db_custom.php, then defaults)
-$host = getenv('DB_HOST') ?: 'localhost';
-$username = getenv('DB_USERNAME') ?: (getenv('DB_USER') ?: 'root');
-$password = getenv('DB_PASSWORD') ?: (getenv('DB_PASS') ?: '');
-$database = getenv('DB_DATABASE') ?: (getenv('DB_NAME') ?: 'inventory_db');
-$port = (int)(getenv('DB_PORT') ?: 3306);
+// Default connection settings (prioritize .env, then db_custom.php, then TiDB defaults)
+$host = getenv('DB_HOST') ?: 'gateway01.ap-northeast-1.prod.aws.tidbcloud.com';
+$username = getenv('DB_USERNAME') ?: (getenv('DB_USER') ?: 'K7kGYdYzup79K6J.root');
+$password = getenv('DB_PASSWORD') ?: (getenv('DB_PASS') ?: 'vHsQYZ4P19RRw1x7');
+$database = getenv('DB_DATABASE') ?: (getenv('DB_NAME') ?: 'test');
+$port = (int)(getenv('DB_PORT') ?: 4000);
 
 if (file_exists($configFile)) {
     $existing = include($configFile);
@@ -48,18 +48,28 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $message = "Installation is locked for security. Delete 'config/install.lock' on the server to re-run.";
         $messageType = 'danger';
     } else {
-        $host = trim($_POST['host'] ?? 'localhost');
-        $username = trim($_POST['username'] ?? 'root');
+        $host = trim($_POST['host'] ?? 'gateway01.ap-northeast-1.prod.aws.tidbcloud.com');
+        $username = trim($_POST['username'] ?? 'K7kGYdYzup79K6J.root');
         $password = $_POST['password'] ?? '';
-        $database = trim($_POST['database'] ?? 'inventory_db');
-        $port = (int)($_POST['port'] ?? 3306);
+        $database = trim($_POST['database'] ?? 'test');
+        $port = (int)($_POST['port'] ?? 4000);
         $installSample = isset($_POST['install_sample']);
 
         mysqli_report(MYSQLI_REPORT_OFF);
-        $mysqli = @new mysqli($host, $username, $password, '', $port);
+        $mysqli = mysqli_init();
+        $isCloudOrTiDb = ($port == 4000 || stripos($host, 'tidb') !== false || stripos($host, 'aiven') !== false || getenv('DB_SSL') === 'true');
+        if ($isCloudOrTiDb) {
+            $mysqli->options(MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, false);
+            $mysqli->ssl_set(null, null, null, null, null);
+        }
+        $clientFlags = $isCloudOrTiDb ? MYSQLI_CLIENT_SSL : 0;
+        $connected = @$mysqli->real_connect($host, $username, $password, '', $port, null, $clientFlags);
+        if (!$connected && $clientFlags !== 0) {
+            $connected = @$mysqli->real_connect($host, $username, $password, '', $port);
+        }
 
-        if ($mysqli->connect_error) {
-            $message = "Database Connection Failed: " . $mysqli->connect_error;
+        if (!$connected || $mysqli->connect_error) {
+            $message = "Database Connection Failed: " . ($mysqli ? $mysqli->connect_error : 'Connection timeout');
             $messageType = 'danger';
         } else {
             // Create database if not exists
