@@ -7,6 +7,7 @@ FROM php:8.2-apache
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
+    ca-certificates \
     libzip-dev \
     libsqlite3-dev \
     zip \
@@ -55,7 +56,6 @@ COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN sed -i -e 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
     && chmod +x /usr/local/bin/docker-entrypoint.sh \
     && mkdir -p /var/www/html/database /var/www/html/config \
-    && DB_DRIVER=sqlite php /var/www/html/setup_database.php || true \
     && chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html \
     && chmod -R 777 /var/www/html/config /var/www/html/database

@@ -13,6 +13,8 @@ services:
         value: "false"
       - key: APP_TIMEZONE
         value: Asia/Kolkata
+      - key: DB_DRIVER
+        value: mysqli
       - key: DB_HOST
         value: gateway01.ap-northeast-1.prod.aws.tidbcloud.com
       - key: DB_PORT

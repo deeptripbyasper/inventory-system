@@ -34,19 +34,35 @@ $force = in_array('--force', $argv ?? []) || in_array('-f', $argv ?? []);
 
 echo "1. Initializing MySQL Database..." . PHP_EOL;
 mysqli_report(MYSQLI_REPORT_OFF);
-$mysqli = mysqli_init();
 $isCloudOrTiDb = ($port == 4000 || stripos($host, 'tidb') !== false || stripos($host, 'aiven') !== false || getenv('DB_SSL') === 'true');
-$clientFlags = $isCloudOrTiDb ? MYSQLI_CLIENT_SSL : 0;
 
-$connected = @$mysqli->real_connect($host, $username, $password, '', $port, null, $clientFlags);
-if (!$connected && $clientFlags !== 0) {
-    $connected = @$mysqli->real_connect($host, $username, $password, '', $port);
-} elseif (!$connected && $clientFlags === 0 && $host !== 'localhost' && $host !== '127.0.0.1') {
-    $connected = @$mysqli->real_connect($host, $username, $password, '', $port, null, MYSQLI_CLIENT_SSL);
+$connected = false;
+$mysqli = null;
+for ($attempt = 1; $attempt <= 3; $attempt++) {
+    $mysqli = mysqli_init();
+    if (!$mysqli) break;
+    $mysqli->options(MYSQLI_OPT_CONNECT_TIMEOUT, 15);
+    if ($isCloudOrTiDb) {
+        $mysqli->options(MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, false);
+        $mysqli->ssl_set(null, null, null, null, null);
+    }
+    $clientFlags = $isCloudOrTiDb ? MYSQLI_CLIENT_SSL : 0;
+    $connected = @$mysqli->real_connect($host, $username, $password, '', $port, null, $clientFlags);
+    if (!$connected && $clientFlags !== 0) {
+        $connected = @$mysqli->real_connect($host, $username, $password, '', $port);
+    } elseif (!$connected && $clientFlags === 0 && $host !== 'localhost' && $host !== '127.0.0.1') {
+        $connected = @$mysqli->real_connect($host, $username, $password, '', $port, null, MYSQLI_CLIENT_SSL);
+    }
+
+    if ($connected && !$mysqli->connect_error) {
+        break;
+    } else {
+        if ($attempt < 3) usleep(500000);
+    }
 }
 
-if (!$connected || $mysqli->connect_error) {
-    echo "MySQL connection failed: " . ($mysqli->connect_error ?: 'Connection timeout') . PHP_EOL;
+if (!$connected || !$mysqli || $mysqli->connect_error) {
+    echo "MySQL connection failed: " . ($mysqli ? $mysqli->connect_error : 'Connection timeout') . PHP_EOL;
     echo "Falling back to SQLite only." . PHP_EOL;
 } else {
     $dbNameEscaped = preg_replace('/[^a-zA-Z0-9_]/', '', $database);
@@ -70,45 +86,47 @@ if (!$connected || $mysqli->connect_error) {
         while ($mysqli->more_results() && $mysqli->next_result()) { /* flush */ }
         echo "MySQL initialized with master catalog dataset!" . PHP_EOL;
     } else {
-        echo "MySQL tables exist with active data. Preserving live data." . PHP_EOL;
+        echo "MySQL tables exist with active data (" . ($prodRow['c'] ?? 0) . " products). Preserving live data." . PHP_EOL;
     }
     $mysqli->close();
 }
 
-// 2. Initialize SQLite Database
-echo "2. Initializing SQLite Database..." . PHP_EOL;
-$sqlitePath = getenv('DB_PATH') ?: (__DIR__ . '/database/inventory_db.sqlite');
-$sqliteExists = file_exists($sqlitePath) && filesize($sqlitePath) > 0;
+// 2. Initialize SQLite Database (Only if explicitly in sqlite mode or local dev without MySQL)
+$envDriver = getenv('DB_DRIVER');
+$isRemoteHost = (!empty($host) && $host !== 'localhost' && $host !== '127.0.0.1');
 
-if ($force && $sqliteExists) {
-    echo "Force reseed specified: resetting SQLite database." . PHP_EOL;
-    @unlink($sqlitePath);
-    $sqliteExists = false;
-}
+if ($envDriver === 'sqlite' || (!$isRemoteHost && empty(getenv('DB_HOST')))) {
+    echo "2. Initializing SQLite Database..." . PHP_EOL;
+    $sqlitePath = getenv('DB_PATH') ?: (__DIR__ . '/database/inventory_db.sqlite');
+    $sqliteExists = file_exists($sqlitePath) && filesize($sqlitePath) > 0;
 
-// Instantiate fresh Database object in SQLite mode and seed
-$prevDriver = getenv('DB_DRIVER');
-putenv('DB_DRIVER=sqlite');
-$_ENV['DB_DRIVER'] = 'sqlite';
+    if ($force && $sqliteExists) {
+        echo "Force reseed specified: resetting SQLite database." . PHP_EOL;
+        @unlink($sqlitePath);
+        $sqliteExists = false;
+    }
 
-// Reset Singleton instance so it connects cleanly to SQLite
-$refProp = new ReflectionProperty('Database', 'instance');
-$refProp->setAccessible(true);
-$refProp->setValue(null, null);
+    putenv('DB_DRIVER=sqlite');
+    $_ENV['DB_DRIVER'] = 'sqlite';
 
-$sqliteDb = Database::getInstance();
-if ($force || !$sqliteExists) {
-    $sqliteDb->seedSqliteDatabase(true);
-    echo "SQLite database successfully seeded with master catalog at: {$sqlitePath}" . PHP_EOL;
-} else {
-    $sqliteDb->ensureSqliteTables(false);
-    echo "SQLite database verified and active data preserved at: {$sqlitePath}" . PHP_EOL;
-}
-
-if ($prevDriver !== false && !empty($prevDriver)) {
-    putenv("DB_DRIVER={$prevDriver}");
-    $_ENV['DB_DRIVER'] = $prevDriver;
+    $refProp = new ReflectionProperty('Database', 'instance');
+    $refProp->setAccessible(true);
     $refProp->setValue(null, null);
+
+    $sqliteDb = Database::getInstance();
+    if ($force || !$sqliteExists) {
+        $sqliteDb->seedSqliteDatabase(true);
+        echo "SQLite database successfully seeded with master catalog at: {$sqlitePath}" . PHP_EOL;
+    } else {
+        $sqliteDb->ensureSqliteTables(false);
+        echo "SQLite database verified and active data preserved at: {$sqlitePath}" . PHP_EOL;
+    }
+
+    if ($envDriver !== false && !empty($envDriver)) {
+        putenv("DB_DRIVER={$envDriver}");
+        $_ENV['DB_DRIVER'] = $envDriver;
+        $refProp->setValue(null, null);
+    }
 }
 
 echo "=== DATABASE SETUP COMPLETED ===" . PHP_EOL;

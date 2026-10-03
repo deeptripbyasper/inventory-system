@@ -115,14 +115,20 @@ class Database {
         // Try MySQLi first if driver is mysqli
         if ($this->driver === 'mysqli') {
             mysqli_report(MYSQLI_REPORT_OFF);
-            $this->mysqli = mysqli_init();
-            if ($this->mysqli) {
-                $this->mysqli->options(MYSQLI_OPT_CONNECT_TIMEOUT, 10);
-                
-                // TiDB Serverless & Cloud MySQL (port 4000, tidbcloud, aiven, or remote) requires SSL
-                $isCloudOrTiDb = ($this->port == 4000 || stripos($this->host, 'tidb') !== false || stripos($this->host, 'aiven') !== false || getenv('DB_SSL') === 'true');
-                $clientFlags = $isCloudOrTiDb ? MYSQLI_CLIENT_SSL : 0;
+            $isCloudOrTiDb = ($this->port == 4000 || stripos($this->host, 'tidb') !== false || stripos($this->host, 'aiven') !== false || getenv('DB_SSL') === 'true');
+            
+            $maxAttempts = 3;
+            for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+                $this->mysqli = mysqli_init();
+                if (!$this->mysqli) break;
 
+                $this->mysqli->options(MYSQLI_OPT_CONNECT_TIMEOUT, 15);
+                if ($isCloudOrTiDb) {
+                    $this->mysqli->options(MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, false);
+                    $this->mysqli->ssl_set(null, null, null, null, null);
+                }
+
+                $clientFlags = $isCloudOrTiDb ? MYSQLI_CLIENT_SSL : 0;
                 $connected = @$this->mysqli->real_connect($this->host, $this->username, $this->password, $this->database, $this->port, null, $clientFlags);
                 
                 if (!$connected && $clientFlags !== 0) {
@@ -140,11 +146,22 @@ class Database {
                 } else {
                     $this->error = $this->mysqli->connect_error ?: 'MySQL Connection Failed';
                     $this->mysqli = null;
+                    if ($attempt < $maxAttempts) {
+                        usleep(500000); // 500ms retry backoff
+                    }
                 }
+            }
+
+            // If remote host or explicit mysqli is configured, DO NOT silently write to ephemeral SQLite
+            $isRemoteHost = (!empty($this->host) && $this->host !== 'localhost' && $this->host !== '127.0.0.1');
+            $hasExplicitMysqlEnv = (!empty(getenv('DB_HOST')) || !empty(getenv('DATABASE_URL')) || getenv('DB_DRIVER') === 'mysqli');
+            if ($isRemoteHost || $hasExplicitMysqlEnv) {
+                error_log("CRITICAL: Failed to connect to MySQL/TiDB database at {$this->host}:{$this->port}. Error: " . $this->error);
+                return; // Preserve remote driver state and prevent data loss on ephemeral filesystem
             }
         }
 
-        // If MySQLi is not available, fallback seamlessly to SQLite
+        // If local environment without remote DB, use SQLite
         $this->initSqlite();
     }
 

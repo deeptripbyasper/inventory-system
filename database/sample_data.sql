@@ -225,7 +225,6 @@ INSERT INTO `product_batches` (`id`, `product_id`, `supplier_id`, `batch_no`, `m
 (84, 82, 4, 'BAT-NUT30-01',   DATE_SUB(CURDATE(), INTERVAL 40 DAY), DATE_ADD(CURDATE(), INTERVAL 320 DAY), 35.00, 45.00, 0, 0, 'sold_out'),
 (85, 83, 4, 'BAT-CHOC50-01', DATE_SUB(CURDATE(), INTERVAL 60 DAY), DATE_ADD(CURDATE(), INTERVAL 300 DAY), 80.00, 100.00, 0, 0, 'sold_out')
 ON DUPLICATE KEY UPDATE 
-    `current_quantity` = VALUES(`current_quantity`),
     `purchase_price` = VALUES(`purchase_price`),
     `selling_price` = VALUES(`selling_price`),
     `expiry_date` = VALUES(`expiry_date`);
