@@ -16,8 +16,8 @@ $product = $db->fetchOne("
         c.name as category_name,
         COALESCE(SUM(b.current_quantity), 0) as total_leftover_stock,
         COALESCE(SUM(b.initial_quantity), 0) as total_initial_stock,
-        COALESCE(SUM(b.current_quantity * b.purchase_price), 0) as total_cost_value,
-        COALESCE(SUM(b.current_quantity * b.selling_price), 0) as total_retail_value
+        COALESCE(SUM(b.current_quantity * (CASE WHEN b.purchase_price > 0 THEN b.purchase_price WHEN b.selling_price > 0 THEN b.selling_price * 0.8 WHEN p.default_selling_price > 0 THEN p.default_selling_price * 0.8 ELSE 0.00 END)), 0) as total_cost_value,
+        COALESCE(SUM(b.current_quantity * (CASE WHEN b.selling_price > 0 THEN b.selling_price WHEN p.default_selling_price > 0 THEN p.default_selling_price ELSE 0.00 END)), 0) as total_retail_value
     FROM `products` p
     LEFT JOIN `categories` c ON p.category_id = c.id
     LEFT JOIN `product_batches` b ON p.id = b.product_id
@@ -27,8 +27,7 @@ $product = $db->fetchOne("
 
 if (!$product) {
     setFlash('danger', 'Product not found.');
-    header("Location: " . BASE_URL . "/modules/products/index.php");
-    exit;
+    redirect(BASE_URL . "/modules/products/index.php");
 }
 
 // Fetch all batches for this product

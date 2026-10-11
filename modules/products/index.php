@@ -29,9 +29,8 @@ $sql = "
         c.name as category_name,
         COALESCE(SUM(b.current_quantity), 0) as total_leftover_stock,
         COUNT(b.id) as total_batches,
-        MIN(CASE WHEN b.current_quantity > 0 THEN b.expiry_date ELSE NULL END) as nearest_expiry,
-        COALESCE(SUM(b.current_quantity * b.purchase_price), 0) as stock_cost_value,
-        COALESCE(SUM(b.current_quantity * b.selling_price), 0) as stock_retail_value
+        COALESCE(SUM(b.current_quantity * (CASE WHEN b.purchase_price > 0 THEN b.purchase_price WHEN b.selling_price > 0 THEN b.selling_price * 0.8 WHEN p.default_selling_price > 0 THEN p.default_selling_price * 0.8 ELSE 0.00 END)), 0) as stock_cost_value,
+        COALESCE(SUM(b.current_quantity * (CASE WHEN b.selling_price > 0 THEN b.selling_price WHEN p.default_selling_price > 0 THEN p.default_selling_price ELSE 0.00 END)), 0) as stock_retail_value
     FROM `products` p
     LEFT JOIN `categories` c ON p.category_id = c.id
     LEFT JOIN `product_batches` b ON p.id = b.product_id

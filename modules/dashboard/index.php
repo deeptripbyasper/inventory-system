@@ -19,11 +19,12 @@ $totalCostValuation = 0.00;
 $totalRetailValuation = 0.00;
 $res = $db->fetchOne("
     SELECT 
-        COALESCE(SUM(current_quantity), 0) as total_units,
-        COALESCE(SUM(current_quantity * purchase_price), 0) as total_cost,
-        COALESCE(SUM(current_quantity * selling_price), 0) as total_retail
-    FROM `product_batches`
-    WHERE `current_quantity` > 0
+        COALESCE(SUM(b.current_quantity), 0) as total_units,
+        COALESCE(SUM(b.current_quantity * (CASE WHEN b.purchase_price > 0 THEN b.purchase_price WHEN b.selling_price > 0 THEN b.selling_price * 0.8 WHEN p.default_selling_price > 0 THEN p.default_selling_price * 0.8 ELSE 0.00 END)), 0) as total_cost,
+        COALESCE(SUM(b.current_quantity * (CASE WHEN b.selling_price > 0 THEN b.selling_price WHEN p.default_selling_price > 0 THEN p.default_selling_price ELSE 0.00 END)), 0) as total_retail
+    FROM `product_batches` b
+    JOIN `products` p ON b.product_id = p.id
+    WHERE b.`current_quantity` > 0
 ");
 if ($res) {
     $totalLeftoverStock = (int)$res['total_units'];

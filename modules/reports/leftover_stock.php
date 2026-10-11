@@ -13,27 +13,7 @@ $stockFilter = $_GET['stock_filter'] ?? 'all';
 
 $categories = $db->fetchAll("SELECT * FROM `categories` ORDER BY `name` ASC");
 
-// 1. Overall Leftover Inventory Aggregations
-$overallStats = $db->fetchOne("
-    SELECT 
-        COUNT(DISTINCT p.id) as total_products,
-        COUNT(b.id) as total_batches,
-        COALESCE(SUM(b.initial_quantity), 0) as total_initial_units,
-        COALESCE(SUM(b.initial_quantity - b.current_quantity), 0) as total_sold_units,
-        COALESCE(SUM(b.current_quantity), 0) as total_leftover_units,
-        COALESCE(SUM(b.current_quantity * b.purchase_price), 0) as total_cost_value,
-        COALESCE(SUM(b.current_quantity * b.selling_price), 0) as total_retail_value
-    FROM `products` p
-    LEFT JOIN `product_batches` b ON p.id = b.product_id
-    WHERE p.status = 'active'
-");
-
-$totalLeftoverUnits = (int)($overallStats['total_leftover_units'] ?? 0);
-$totalCostValuation = (float)($overallStats['total_cost_value'] ?? 0);
-$totalRetailValuation = (float)($overallStats['total_retail_value'] ?? 0);
-$unrealizedProfit = $totalRetailValuation - $totalCostValuation;
-
-// 2. Fetch Leftover Batches with Product Details
+// 1. Fetch Leftover Batches with Product Details
 $sql = "
     SELECT 
         b.id as batch_id,
@@ -45,8 +25,8 @@ $sql = "
         b.initial_quantity,
         b.current_quantity as leftover_quantity,
         (b.initial_quantity - b.current_quantity) as sold_quantity,
-        (b.current_quantity * b.purchase_price) as leftover_cost_value,
-        (b.current_quantity * b.selling_price) as leftover_retail_value,
+        (b.current_quantity * (CASE WHEN b.purchase_price > 0 THEN b.purchase_price WHEN b.selling_price > 0 THEN b.selling_price * 0.8 WHEN p.default_selling_price > 0 THEN p.default_selling_price * 0.8 ELSE 0.00 END)) as leftover_cost_value,
+        (b.current_quantity * (CASE WHEN b.selling_price > 0 THEN b.selling_price WHEN p.default_selling_price > 0 THEN p.default_selling_price ELSE 0.00 END)) as leftover_retail_value,
         p.id as product_id,
         p.name as product_name,
         p.sku,
@@ -82,6 +62,28 @@ if ($stockFilter === 'low') {
 $sql .= " ORDER BY p.name ASC, b.expiry_date ASC";
 
 $leftoverRows = $db->fetchAll($sql, $types, $params);
+
+// 2. Overall Leftover Inventory Aggregations from matching records
+$totalLeftoverUnits = 0;
+$totalSoldUnits = 0;
+$totalCostValuation = 0.00;
+$totalRetailValuation = 0.00;
+
+if (!empty($leftoverRows)) {
+    foreach ($leftoverRows as $r) {
+        $totalLeftoverUnits += (int)$r['leftover_quantity'];
+        $totalSoldUnits += (int)$r['sold_quantity'];
+        $totalCostValuation += (float)$r['leftover_cost_value'];
+        $totalRetailValuation += (float)$r['leftover_retail_value'];
+    }
+}
+$unrealizedProfit = $totalRetailValuation - $totalCostValuation;
+$overallStats = [
+    'total_leftover_units' => $totalLeftoverUnits,
+    'total_sold_units' => $totalSoldUnits,
+    'total_cost_value' => $totalCostValuation,
+    'total_retail_value' => $totalRetailValuation
+];
 ?>
 
 <div class="page-header">

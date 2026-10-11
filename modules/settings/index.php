@@ -23,8 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->seedSqliteDatabase(true);
             }
             setFlash('success', 'Master Catalog successfully reset and synchronized with all 83 products and 85 batches in INR (₹)!');
-            header("Location: " . BASE_URL . "/modules/settings/index.php");
-            exit;
+            redirect(BASE_URL . "/modules/settings/index.php");
         }
     } else {
         $currencySymbol = trim($_POST['currency_symbol'] ?? '₹');
@@ -59,8 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         setFlash('success', 'System settings saved and updated successfully.');
-        header("Location: " . BASE_URL . "/modules/settings/index.php");
-        exit;
+        redirect(BASE_URL . "/modules/settings/index.php");
     }
 }
 

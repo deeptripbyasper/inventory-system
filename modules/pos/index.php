@@ -188,7 +188,6 @@ $totalProductsCount = count($availableItems);
                              data-barcode="<?= e($item['barcode']) ?>"
                              data-category-id="<?= $item['category_id'] ?>"
                              data-product="<?= htmlspecialchars(json_encode($item), ENT_QUOTES, 'UTF-8') ?>"
-                             onclick="addToCart(this.getAttribute('data-product'))"
                              title="Click to add <?= e($item['name']) ?> to bill">
                             
                             <div class="pos-card-top">
@@ -299,6 +298,7 @@ $totalProductsCount = count($availableItems);
                     <input type="hidden" name="cart_data" id="cartDataInput" value="[]">
                     <input type="hidden" name="print_action" id="printActionInput" value="thermal">
                     <input type="hidden" name="discount" id="cartDiscountFinal" value="0.00">
+                    <input type="hidden" name="discount_type" id="cartDiscountType" value="amt">
                     <span id="grandTotalInWords" style="display: none;">Zero Rupees Only</span>
                     <span id="itemsCountBadge" style="display: none;">0</span>
                     <span id="miniPayableTotal" style="display: none;"><?= formatCurrency(0) ?></span>

@@ -30,8 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $db->insert("INSERT INTO `categories` (`name`, `description`) VALUES (?, ?)", "ss", [$name, $description]);
                     setFlash('success', "Category '{$name}' added successfully.");
-                    header("Location: " . BASE_URL . "/modules/categories/index.php");
-                    exit;
+                    redirect(BASE_URL . "/modules/categories/index.php");
                 }
             }
         } elseif ($action === 'edit') {
@@ -48,16 +47,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $db->execute("UPDATE `categories` SET `name` = ?, `description` = ? WHERE `id` = ?", "ssi", [$name, $description, $id]);
                     setFlash('success', "Category '{$name}' updated successfully.");
-                    header("Location: " . BASE_URL . "/modules/categories/index.php");
-                    exit;
+                    redirect(BASE_URL . "/modules/categories/index.php");
                 }
             }
         } elseif ($action === 'delete') {
             $id = (int)($_POST['id'] ?? 0);
             $db->execute("DELETE FROM `categories` WHERE `id` = ?", "i", [$id]);
             setFlash('info', 'Category deleted.');
-            header("Location: " . BASE_URL . "/modules/categories/index.php");
-            exit;
+            redirect(BASE_URL . "/modules/categories/index.php");
         }
     }
 }

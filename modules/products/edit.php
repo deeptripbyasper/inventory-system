@@ -65,8 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             setFlash('success', "Product '{$name}' updated successfully{$batchMsg}!");
-            header("Location: " . BASE_URL . "/modules/products/view.php?id=" . $productId);
-            exit;
+            redirect(BASE_URL . "/modules/products/view.php?id=" . $productId);
         }
     }
 }

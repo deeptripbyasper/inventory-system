@@ -92,8 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $db->commit();
                 setFlash('success', "Product '{$name}' created successfully!");
-                header("Location: " . BASE_URL . "/modules/products/view.php?id=" . $productId);
-                exit;
+                redirect(BASE_URL . "/modules/products/view.php?id=" . $productId);
             } else {
                 $db->rollback();
                 $errors[] = "Failed to save product: " . $db->getError();

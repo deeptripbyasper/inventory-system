@@ -143,9 +143,21 @@ function currentUser() {
 function requireAuth() {
     if (!isLoggedIn()) {
         $loginUrl = BASE_URL . '/login.php';
-        header("Location: " . $loginUrl);
+        redirect($loginUrl);
+    }
+}
+
+/**
+ * Robust HTTP and JavaScript Redirect
+ */
+function redirect($url) {
+    if (!headers_sent()) {
+        header("Location: " . $url);
         exit;
     }
+    echo '<script>window.location.href = ' . json_encode($url) . ';</script>';
+    echo '<noscript><meta http-equiv="refresh" content="0;url=' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"></noscript>';
+    exit;
 }
 
 function hasRole($roles) {

@@ -18,6 +18,7 @@ $sql = "
         p.name as product_name,
         p.sku,
         p.unit,
+        p.default_selling_price,
         c.name as category_name,
         s.name as supplier_name,
         (b.initial_quantity - b.current_quantity) as total_sold
@@ -125,7 +126,11 @@ $batches = $db->fetchAll($sql);
                     <?php foreach ($batches as $b): 
                         $expInfo = getExpiryStatus($b['expiry_date']);
                         $isExpired = $expInfo['status'] === 'expired';
-                        $leftoverValue = $b['current_quantity'] * $b['purchase_price'];
+                        $effectiveCost = ($b['purchase_price'] > 0)
+                            ? $b['purchase_price']
+                            : (($b['selling_price'] > 0) ? $b['selling_price'] * 0.8 : (($b['default_selling_price'] > 0) ? $b['default_selling_price'] * 0.8 : 0));
+                        $leftoverValue = $b['current_quantity'] * $effectiveCost;
+                        $effectiveSelling = ($b['selling_price'] > 0) ? $b['selling_price'] : ($b['default_selling_price'] ?? 0);
                     ?>
                         <tr class="<?= $isExpired ? 'highlight-expired' : ($expInfo['status'] === 'critical' ? 'highlight-critical' : '') ?>">
                             <td>
@@ -153,7 +158,7 @@ $batches = $db->fetchAll($sql);
                             </td>
                             <td><?= formatCurrency($leftoverValue) ?></td>
                             <td>
-                                <strong><?= formatCurrency($b['selling_price']) ?></strong>
+                                <strong><?= formatCurrency($effectiveSelling) ?></strong>
                                 <small style="color: var(--text-muted); display: block; font-size: 0.74rem;">/ <?= e($b['unit']) ?></small>
                             </td>
                             <td>

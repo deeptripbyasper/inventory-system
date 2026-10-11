@@ -44,6 +44,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (empty($errors)) {
+            $prodInfo = $db->fetchOne("SELECT default_selling_price FROM products WHERE id = ?", "i", [$productId]);
+            $defaultPrice = (float)($prodInfo['default_selling_price'] ?? 0.00);
+            if ($sellingPrice <= 0 && $defaultPrice > 0) {
+                $sellingPrice = $defaultPrice;
+            }
+            if ($purchasePrice <= 0 && $sellingPrice > 0) {
+                $purchasePrice = round($sellingPrice * 0.8, 2);
+            }
+
             $db->beginTransaction();
 
             $insertBatchSql = "
@@ -65,8 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $db->commit();
                 setFlash('success', "Batch '{$batchNo}' with {$quantity} units stocked in successfully!");
-                header("Location: " . BASE_URL . "/modules/products/view.php?id=" . $productId);
-                exit;
+                redirect(BASE_URL . "/modules/products/view.php?id=" . $productId);
             } else {
                 $db->rollback();
                 $errors[] = "Failed to save restock batch: " . $db->getError();

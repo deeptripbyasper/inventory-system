@@ -88,6 +88,17 @@ try {
     }
 
     // 2. Financial Totals
+    if ($discount <= 0 && isset($_POST['discount_value']) && (float)$_POST['discount_value'] > 0) {
+        $discVal = (float)$_POST['discount_value'];
+        $discType = $_POST['discount_type'] ?? 'amt';
+        if ($discType === 'pct') {
+            $discount = ($subtotal * $discVal) / 100;
+        } else {
+            $discount = min($subtotal, $discVal);
+        }
+    }
+    $discount = min($subtotal, max(0.00, $discount));
+
     $taxable = max(0, $subtotal - $discount);
     $tax = ($taxable * TAX_RATE) / 100;
     $grandTotal = $taxable + $tax;
@@ -196,8 +207,7 @@ try {
         $redirectUrl = $standardUrl;
     }
 
-    header("Location: " . $redirectUrl);
-    exit;
+    redirect($redirectUrl);
 
 } catch (Exception $e) {
     $db->rollback();
@@ -215,6 +225,5 @@ try {
     }
 
     setFlash('danger', 'Checkout Failed: ' . $e->getMessage());
-    header("Location: " . BASE_URL . "/modules/pos/index.php");
-    exit;
+    redirect(BASE_URL . "/modules/pos/index.php");
 }

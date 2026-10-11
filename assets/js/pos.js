@@ -98,6 +98,8 @@ function initPOS() {
     const discountInput = document.getElementById('cartDiscountInput');
     if (discountInput) {
         discountInput.addEventListener('input', renderCart);
+        discountInput.addEventListener('change', renderCart);
+        discountInput.addEventListener('keyup', renderCart);
     }
 
     // 5. Cash Tendered Input Listener
@@ -219,6 +221,9 @@ function filterPosProducts(query, categoryId) {
     });
 }
 
+let lastAddClickTime = 0;
+let lastAddClickProductId = null;
+
 /**
  * Add Item to Cart
  */
@@ -236,6 +241,14 @@ function addToCart(productJson) {
     }
 
     if (!product || !product.id) return;
+
+    // Guard against duplicate rapid click events within 250ms
+    const now = Date.now();
+    if (lastAddClickProductId === product.id && (now - lastAddClickTime) < 250) {
+        return;
+    }
+    lastAddClickTime = now;
+    lastAddClickProductId = product.id;
 
     if (product.stock <= 0) {
         showPosToast(`Out of Stock: ${product.name} has 0 units!`, 'error');
@@ -338,6 +351,10 @@ function setDiscountType(type) {
     discountType = type;
     const btnAmt = document.getElementById('discTypeAmt');
     const btnPct = document.getElementById('discTypePct');
+    const typeInput = document.getElementById('cartDiscountType');
+    if (typeInput) {
+        typeInput.value = type;
+    }
     if (btnAmt && btnPct) {
         btnAmt.classList.toggle('active', type === 'amt');
         btnPct.classList.toggle('active', type === 'pct');
@@ -839,6 +856,9 @@ function submitPOSSale(printAction, explicitMethod = null) {
         alert('Cannot submit an empty cart. Please add products first.');
         return;
     }
+
+    // Ensure all discount computations and cart totals are strictly up to date
+    renderCart();
 
     if (explicitMethod) {
         handlePaymentMethodChange(explicitMethod);

@@ -39,64 +39,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['form_action'] ?? 'adjust_stock';
 
         if ($action === 'update_price') {
-        $newSellingPrice = (float)($_POST['selling_price'] ?? 0);
-        if ($newSellingPrice <= 0) {
-            $errors[] = 'Selling price must be greater than 0.';
-        } else {
-            $db->execute("UPDATE `product_batches` SET `selling_price` = ? WHERE `id` = ?", "di", [$newSellingPrice, $batchId]);
-            setFlash('success', "Batch {$batch['batch_no']} selling price updated to " . formatCurrency($newSellingPrice) . " / {$batch['unit']} successfully!");
-            header("Location: " . BASE_URL . "/modules/batches/adjust.php?batch_id=" . $batchId);
-            exit;
-        }
-    } else {
-        $type = $_POST['adjustment_type'] ?? 'subtraction';
-        $quantity = (int)($_POST['quantity'] ?? 0);
-        $reason = $_POST['reason'] ?? 'expired';
-        $notes = trim($_POST['notes'] ?? '');
-
-        if ($quantity <= 0) {
-            $errors[] = 'Adjustment quantity must be greater than 0.';
-        }
-
-        if ($type === 'subtraction' && $quantity > $batch['current_quantity']) {
-            $errors[] = "Cannot subtract {$quantity} units. Current leftover stock is only {$batch['current_quantity']} units.";
-        }
-
-        if (empty($errors)) {
-            $db->beginTransaction();
-
-            $newQty = ($type === 'subtraction') 
-                ? ($batch['current_quantity'] - $quantity)
-                : ($batch['current_quantity'] + $quantity);
-
-            $newStatus = $batch['status'];
-            if ($newQty <= 0) {
-                $newStatus = ($reason === 'expired') ? 'discarded' : 'sold_out';
-            } elseif ($batch['expiry_date'] < date('Y-m-d')) {
-                $newStatus = 'expired';
+            $newSellingPrice = (float)($_POST['selling_price'] ?? 0);
+            if ($newSellingPrice <= 0) {
+                $errors[] = 'Selling price must be greater than 0.';
             } else {
-                $newStatus = 'available';
+                $db->execute("UPDATE `product_batches` SET `selling_price` = ? WHERE `id` = ?", "di", [$newSellingPrice, $batchId]);
+                setFlash('success', "Batch {$batch['batch_no']} selling price updated to " . formatCurrency($newSellingPrice) . " / {$batch['unit']} successfully!");
+                redirect(BASE_URL . "/modules/batches/adjust.php?batch_id=" . $batchId);
+            }
+        } else {
+            $type = $_POST['adjustment_type'] ?? 'subtraction';
+            $quantity = (int)($_POST['quantity'] ?? 0);
+            $reason = $_POST['reason'] ?? 'expired';
+            $notes = trim($_POST['notes'] ?? '');
+
+            if ($quantity <= 0) {
+                $errors[] = 'Adjustment quantity must be greater than 0.';
             }
 
-            // Update Batch
-            $updateSql = "UPDATE `product_batches` SET `current_quantity` = ?, `status` = ? WHERE `id` = ?";
-            $db->execute($updateSql, "isi", [$newQty, $newStatus, $batchId]);
+            if ($type === 'subtraction' && $quantity > $batch['current_quantity']) {
+                $errors[] = "Cannot subtract {$quantity} units. Current leftover stock is only {$batch['current_quantity']} units.";
+            }
 
-            // Log Adjustment
-            $logSql = "
-                INSERT INTO `stock_adjustments` (`product_id`, `batch_id`, `user_id`, `adjustment_type`, `quantity`, `reason`, `notes`)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ";
-            $db->insert($logSql, "iiisiss", [
-                $batch['product_id'], $batchId, $currentUser['id'] ?? null, $type, $quantity, $reason, $notes
-            ]);
+            if (empty($errors)) {
+                $db->beginTransaction();
 
-            $db->commit();
-            setFlash('success', "Stock adjusted successfully. Remaining leftover stock: {$newQty} {$batch['unit']}.");
-            header("Location: " . BASE_URL . "/modules/products/view.php?id=" . $batch['product_id']);
-            exit;
+                $newQty = ($type === 'subtraction') 
+                    ? ($batch['current_quantity'] - $quantity)
+                    : ($batch['current_quantity'] + $quantity);
+
+                $newStatus = $batch['status'];
+                if ($newQty <= 0) {
+                    $newStatus = ($reason === 'expired') ? 'discarded' : 'sold_out';
+                } elseif ($batch['expiry_date'] < date('Y-m-d')) {
+                    $newStatus = 'expired';
+                } else {
+                    $newStatus = 'available';
+                }
+
+                // Update Batch
+                $updateSql = "UPDATE `product_batches` SET `current_quantity` = ?, `status` = ? WHERE `id` = ?";
+                $db->execute($updateSql, "isi", [$newQty, $newStatus, $batchId]);
+
+                // Log Adjustment
+                $logSql = "
+                    INSERT INTO `stock_adjustments` (`product_id`, `batch_id`, `user_id`, `adjustment_type`, `quantity`, `reason`, `notes`)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ";
+                $db->insert($logSql, "iiisiss", [
+                    $batch['product_id'], $batchId, $currentUser['id'] ?? null, $type, $quantity, $reason, $notes
+                ]);
+
+                $db->commit();
+                setFlash('success', "Stock adjusted successfully. Remaining leftover stock: {$newQty} {$batch['unit']}.");
+                redirect(BASE_URL . "/modules/products/view.php?id=" . $batch['product_id']);
+            }
         }
-    }
     }
 }
 
@@ -217,6 +215,17 @@ $adjustmentLogs = $db->fetchAll("
     </div>
 </div>
 
+<?php if (!empty($errors)): ?>
+    <div class="alert alert-danger" style="margin-bottom: 1.5rem;">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>
+            <?php foreach ($errors as $err): ?>
+                <div><?= e($err) ?></div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+<?php endif; ?>
+
 <!-- Adjustment Form -->
 <form action="<?= BASE_URL ?>/modules/batches/adjust.php?batch_id=<?= $batchId ?>" method="POST">
     <input type="hidden" name="csrf_token" value="<?= e(getCsrfToken()) ?>">
@@ -233,7 +242,7 @@ $adjustmentLogs = $db->fetchAll("
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label" for="adjustment_type">Action Type</label>
-                    <select id="adjustment_type" name="adjustment_type" class="form-select">
+                    <select id="adjustment_type" name="adjustment_type" class="form-select" onchange="updateAdjustmentLimits(this.value)">
                         <option value="subtraction">Subtract Stock (Write-off, Expiry, Damage)</option>
                         <option value="addition">Add Stock (Inventory Audit Recovery)</option>
                     </select>
@@ -253,14 +262,26 @@ $adjustmentLogs = $db->fetchAll("
 
                 <div class="form-group">
                     <label class="form-label" for="quantity">Quantity to Adjust (<?= e($batch['unit']) ?>) <span style="color: var(--danger);">*</span></label>
-                    <input type="number" min="1" max="<?= $batch['current_quantity'] > 0 ? $batch['current_quantity'] : 99999 ?>" 
+                    <input type="number" min="1" max="<?= max(1, (int)$batch['current_quantity']) ?>" 
                            id="quantity" name="quantity" class="form-control" 
-                           value="<?= $expInfo['status'] === 'expired' ? $batch['current_quantity'] : '1' ?>" required>
+                           value="<?= $expInfo['status'] === 'expired' && $batch['current_quantity'] > 0 ? $batch['current_quantity'] : '1' ?>" required>
                     <?php if ($expInfo['status'] === 'expired' && $batch['current_quantity'] > 0): ?>
                         <small style="color: var(--danger); font-weight: 600;">Pre-filled with all <?= $batch['current_quantity'] ?> expired units for write-off.</small>
                     <?php endif; ?>
                 </div>
             </div>
+
+            <script>
+            function updateAdjustmentLimits(type) {
+                const qtyInput = document.getElementById('quantity');
+                const curStock = <?= (int)$batch['current_quantity'] ?>;
+                if (type === 'addition') {
+                    qtyInput.removeAttribute('max');
+                } else {
+                    qtyInput.setAttribute('max', Math.max(1, curStock));
+                }
+            }
+            </script>
 
             <div class="form-group">
                 <label class="form-label" for="notes">Adjustment Audit Notes / Authorization</label>

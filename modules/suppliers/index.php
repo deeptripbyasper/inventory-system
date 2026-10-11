@@ -33,8 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ", "sssss", [$name, $contact, $phone, $email, $address]);
 
                 setFlash('success', "Supplier '{$name}' added successfully.");
-                header("Location: " . BASE_URL . "/modules/suppliers/index.php");
-                exit;
+                redirect(BASE_URL . "/modules/suppliers/index.php");
             }
         } elseif ($action === 'edit') {
             $id = (int)($_POST['id'] ?? 0);
@@ -54,15 +53,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ", "sssssi", [$name, $contact, $phone, $email, $address, $id]);
 
                 setFlash('success', "Supplier '{$name}' updated successfully.");
-                header("Location: " . BASE_URL . "/modules/suppliers/index.php");
-                exit;
+                redirect(BASE_URL . "/modules/suppliers/index.php");
             }
         } elseif ($action === 'delete') {
             $id = (int)($_POST['id'] ?? 0);
             $db->execute("DELETE FROM `suppliers` WHERE `id` = ?", "i", [$id]);
             setFlash('info', 'Supplier deleted.');
-            header("Location: " . BASE_URL . "/modules/suppliers/index.php");
-            exit;
+            redirect(BASE_URL . "/modules/suppliers/index.php");
         }
     }
 }

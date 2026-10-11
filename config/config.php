@@ -6,6 +6,11 @@
 
 defined('APP_INIT') or define('APP_INIT', true);
 
+// Enable global output buffering to ensure HTTP redirects and flash alerts work without headers-already-sent errors
+if (ob_get_level() === 0) {
+    ob_start();
+}
+
 // Base Paths
 defined('BASE_PATH') or define('BASE_PATH', dirname(__DIR__));
 defined('ROOT_PATH') or define('ROOT_PATH', BASE_PATH);
