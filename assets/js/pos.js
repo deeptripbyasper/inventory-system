@@ -16,7 +16,7 @@ let activePaymentMethod = 'cash';
 let lastCompletedSale = null;
 
 let rawCurrency = (typeof window.APP_CURRENCY === 'string' && window.APP_CURRENCY.trim()) ? window.APP_CURRENCY.trim() : '₹';
-if (/[0-9]/.test(rawCurrency) || rawCurrency === '$' || rawCurrency.length > 4) {
+if (/[0-9]/.test(rawCurrency) || rawCurrency === '$' || rawCurrency.includes('â') || rawCurrency.length > 4) {
     rawCurrency = '₹';
 }
 const currencySymbol = rawCurrency;

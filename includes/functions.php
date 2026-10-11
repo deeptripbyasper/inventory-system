@@ -17,7 +17,7 @@ function e($string) {
  */
 function formatCurrency($amount, $decimals = 2) {
     $symbol = defined('CURRENCY_SYMBOL') && !empty(CURRENCY_SYMBOL) ? CURRENCY_SYMBOL : '₹';
-    if (preg_match('/[0-9]/', $symbol) || $symbol === '$' || mb_strlen($symbol) > 4) {
+    if (preg_match('/[0-9]/', $symbol) || $symbol === '$' || mb_strlen($symbol) > 4 || strpos($symbol, "\xC3\xA2") !== false || strpos($symbol, 'â') !== false) {
         $symbol = '₹';
     }
     return $symbol . number_format((float)$amount, $decimals);

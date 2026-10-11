@@ -159,7 +159,7 @@ if ($db->isConnected()) {
 
 // Guarantee INR / ₹ currency is always strictly enforced and auto-repaired
 $rawSymbol = (string)($systemSettings['currency_symbol'] ?? '');
-if (empty($rawSymbol) || preg_match('/[0-9]/', $rawSymbol) || $rawSymbol === '$' || mb_strlen($rawSymbol) > 4) {
+if (empty($rawSymbol) || preg_match('/[0-9]/', $rawSymbol) || $rawSymbol === '$' || mb_strlen($rawSymbol) > 4 || strpos($rawSymbol, "\xC3\xA2") !== false || strpos($rawSymbol, 'â') !== false) {
     $systemSettings['currency_symbol'] = '₹';
     if ($db->isConnected()) {
         try {
