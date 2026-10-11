@@ -28,3 +28,4 @@ desktop.ini
 # Temporary / Scratch
 tmp/
 temp/
+*.zip
