@@ -29,3 +29,4 @@ desktop.ini
 tmp/
 temp/
 *.zip
+build_deploy_zip.ps1
