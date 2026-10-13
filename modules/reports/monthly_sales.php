@@ -1,23 +1,76 @@
 <?php
 /**
- * Monthly Sales Report (Month-Wise Aggregation & Multi-Month Analytics)
+ * Monthly & Date-Wise Sales Report
+ * Supports Month-Year Selection, Custom From Date - To Date filtering,
+ * Product Name/SKU Search, Day-by-Day Breakdown, and Revenue Trends.
  */
 
-$pageTitle = 'Monthly Sales Report';
+$pageTitle = 'Monthly & Date-Wise Sales Report';
 require_once __DIR__ . '/../../includes/header.php';
 
 $db = Database::getInstance();
 
-// Selected Month and Year
+// 1. Resolve Date Range (From Date -> To Date & Month/Year Fallback)
+$inputFromDate = trim($_GET['from_date'] ?? '');
+$inputToDate = trim($_GET['to_date'] ?? '');
+$productSearch = trim($_GET['product_search'] ?? '');
+
 $selectedYear = isset($_GET['year']) ? (int)$_GET['year'] : (int)date('Y');
 $selectedMonth = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('m');
+if ($selectedMonth < 1 || $selectedMonth > 12) {
+    $selectedMonth = (int)date('m');
+}
+if ($selectedYear < 2000 || $selectedYear > 2100) {
+    $selectedYear = (int)date('Y');
+}
 
-$daysInMonth = cal_days_in_month(CAL_GREGORIAN, $selectedMonth, $selectedYear);
-$monthStartDate = sprintf('%04d-%02d-01', $selectedYear, $selectedMonth);
-$monthEndDate = sprintf('%04d-%02d-%02d', $selectedYear, $selectedMonth, $daysInMonth);
-$monthName = date('F Y', strtotime($monthStartDate));
+$isCustomDateRange = false;
 
-// 1. Monthly Summary KPIs
+if (!empty($inputFromDate) && !empty($inputToDate) &&
+    preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputFromDate) &&
+    preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputToDate)) {
+    
+    $startTs = strtotime($inputFromDate);
+    $endTs = strtotime($inputToDate);
+    
+    if ($startTs && $endTs) {
+        if ($startTs > $endTs) {
+            // Auto swap if user selected inverted dates
+            $temp = $startTs; $startTs = $endTs; $endTs = $temp;
+        }
+        $startDate = date('Y-m-d', $startTs);
+        $endDate = date('Y-m-d', $endTs);
+        $selectedYear = (int)date('Y', $startTs);
+        $selectedMonth = (int)date('m', $startTs);
+        $isCustomDateRange = true;
+    } else {
+        $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $selectedMonth, $selectedYear);
+        $startDate = sprintf('%04d-%02d-01', $selectedYear, $selectedMonth);
+        $endDate = sprintf('%04d-%02d-%02d', $selectedYear, $selectedMonth, $daysInMonth);
+    }
+} else {
+    $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $selectedMonth, $selectedYear);
+    $startDate = sprintf('%04d-%02d-01', $selectedYear, $selectedMonth);
+    $endDate = sprintf('%04d-%02d-%02d', $selectedYear, $selectedMonth, $daysInMonth);
+}
+
+// Check if range matches exact single calendar month
+$calDays = cal_days_in_month(CAL_GREGORIAN, $selectedMonth, $selectedYear);
+$expectedMonthStart = sprintf('%04d-%02d-01', $selectedYear, $selectedMonth);
+$expectedMonthEnd = sprintf('%04d-%02d-%02d', $selectedYear, $selectedMonth, $calDays);
+
+if ($startDate === $expectedMonthStart && $endDate === $expectedMonthEnd) {
+    $isSingleMonth = true;
+    $periodTitle = date('F Y', strtotime($startDate));
+} else {
+    $isSingleMonth = false;
+    $periodTitle = formatDate($startDate, 'M d, Y') . ' — ' . formatDate($endDate, 'M d, Y');
+}
+
+$startDateTime = $startDate . ' 00:00:00';
+$endDateTime = $endDate . ' 23:59:59';
+
+// 2. Summary KPIs for the Selected Date Range
 $monthlySummary = $db->fetchOne("
     SELECT 
         COUNT(id) as total_orders,
@@ -27,9 +80,9 @@ $monthlySummary = $db->fetchOne("
         COALESCE(SUM(grand_total), 0) as total_revenue
     FROM `sales`
     WHERE sale_date BETWEEN ? AND ? AND `status` = 'completed'
-", "ss", [$monthStartDate . ' 00:00:00', $monthEndDate . ' 23:59:59']);
+", "ss", [$startDateTime, $endDateTime]);
 
-// 2. Monthly Cost & Profit
+// Cost & Gross Profit
 $monthlyProfitRes = $db->fetchOne("
     SELECT 
         COALESCE(SUM(si.quantity), 0) as total_units_sold,
@@ -38,7 +91,7 @@ $monthlyProfitRes = $db->fetchOne("
     FROM `sale_items` si
     JOIN `sales` s ON si.sale_id = s.id
     WHERE s.sale_date BETWEEN ? AND ? AND s.status = 'completed'
-", "ss", [$monthStartDate . ' 00:00:00', $monthEndDate . ' 23:59:59']);
+", "ss", [$startDateTime, $endDateTime]);
 
 $monthOrders = (int)($monthlySummary['total_orders'] ?? 0);
 $monthRevenue = (float)($monthlySummary['total_revenue'] ?? 0);
@@ -48,18 +101,28 @@ $monthGrossProfit = (float)($monthlyProfitRes['gross_profit'] ?? 0) - (float)($m
 $monthProfitMargin = $monthRevenue > 0 ? ($monthGrossProfit / $monthRevenue) * 100 : 0;
 $averageOrderValue = $monthOrders > 0 ? ($monthRevenue / $monthOrders) : 0;
 
-// 3. Day-by-Day Aggregation for the Selected Month
+// 3. Day-by-Day Aggregation for Date Range (Up to 366 days)
 $daysMap = [];
-for ($d = 1; $d <= $daysInMonth; $d++) {
-    $dateKey = sprintf('%04d-%02d-%02d', $selectedYear, $selectedMonth, $d);
+$rangeStartTs = strtotime($startDate);
+$rangeEndTs = strtotime($endDate);
+$loopTs = $rangeStartTs;
+$dayLimit = 366;
+$dayCount = 0;
+
+while ($loopTs <= $rangeEndTs && $dayCount < $dayLimit) {
+    $dateKey = date('Y-m-d', $loopTs);
+    $dayLabel = $isSingleMonth ? ('Day ' . date('j', $loopTs)) : date('M d', $loopTs);
     $daysMap[$dateKey] = [
-        'day' => $d,
+        'day' => (int)date('j', $loopTs),
+        'label' => $dayLabel,
         'date' => $dateKey,
         'invoices' => 0,
         'units_sold' => 0,
         'revenue' => 0.00,
         'profit' => 0.00
     ];
+    $loopTs = strtotime('+1 day', $loopTs);
+    $dayCount++;
 }
 
 $dailyBreakdown = $db->fetchAll("
@@ -74,7 +137,7 @@ $dailyBreakdown = $db->fetchAll("
     WHERE s.sale_date BETWEEN ? AND ? AND s.status = 'completed'
     GROUP BY DATE(s.sale_date)
     ORDER BY sdate ASC
-", "ss", [$monthStartDate . ' 00:00:00', $monthEndDate . ' 23:59:59']);
+", "ss", [$startDateTime, $endDateTime]);
 
 if ($dailyBreakdown) {
     foreach ($dailyBreakdown as $db_row) {
@@ -88,12 +151,13 @@ if ($dailyBreakdown) {
     }
 }
 
-// 4. Top Selling Products for the Selected Month
-$monthlyTopProducts = $db->fetchAll("
+// 4. Product Sales Performance (With Product Name / SKU Search)
+$prodSql = "
     SELECT 
         p.id as product_id,
         p.name as product_name,
         p.sku,
+        p.barcode,
         p.unit,
         c.name as category_name,
         SUM(si.quantity) as total_qty_sold,
@@ -104,45 +168,63 @@ $monthlyTopProducts = $db->fetchAll("
     JOIN `products` p ON si.product_id = p.id
     LEFT JOIN `categories` c ON p.category_id = c.id
     WHERE s.sale_date BETWEEN ? AND ? AND s.status = 'completed'
-    GROUP BY p.id, p.name, p.sku, p.unit, c.name
+";
+
+$prodTypes = "ss";
+$prodParams = [$startDateTime, $endDateTime];
+
+if (!empty($productSearch)) {
+    $prodSql .= " AND (p.name LIKE ? OR p.sku LIKE ? OR p.barcode LIKE ?)";
+    $prodTypes .= "sss";
+    $searchWildcard = "%{$productSearch}%";
+    $prodParams[] = $searchWildcard;
+    $prodParams[] = $searchWildcard;
+    $prodParams[] = $searchWildcard;
+}
+
+$prodSql .= "
+    GROUP BY p.id, p.name, p.sku, p.barcode, p.unit, c.name
     ORDER BY total_product_revenue DESC
-    LIMIT 10
-", "ss", [$monthStartDate . ' 00:00:00', $monthEndDate . ' 23:59:59']);
+";
+
+if (empty($productSearch)) {
+    $prodSql .= " LIMIT 30";
+} else {
+    $prodSql .= " LIMIT 200";
+}
+
+$monthlyTopProducts = $db->fetchAll($prodSql, $prodTypes, $prodParams);
+
+// Calculate search-specific statistics if search is active
+$searchTotalUnits = 0;
+$searchTotalRevenue = 0.00;
+$searchTotalProfit = 0.00;
+if (!empty($productSearch) && !empty($monthlyTopProducts)) {
+    foreach ($monthlyTopProducts as $tp) {
+        $searchTotalUnits += (int)$tp['total_qty_sold'];
+        $searchTotalRevenue += (float)$tp['total_product_revenue'];
+        $searchTotalProfit += (float)$tp['total_product_profit'];
+    }
+}
 ?>
 
 <div class="page-header">
     <div class="page-header-title">
         <h1>
             <i class="fa-solid fa-chart-line" style="color: var(--primary);"></i>
-            <span>Monthly Sales Report (<?= e($monthName) ?>)</span>
+            <span>Monthly & Date-Wise Sales Report</span>
         </h1>
-        <p>Month-wide revenue trends, daily profit distribution, and top performing product metrics</p>
+        <p>Sales revenue trends, product velocity audit, and daily profit distribution for <strong><?= e($periodTitle) ?></strong></p>
     </div>
-    <div class="page-header-actions">
-        <!-- Month & Year Selector -->
-        <form action="<?= BASE_URL ?>/modules/reports/monthly_sales.php" method="GET" style="display: flex; gap: 0.5rem; align-items: center;">
-            <select name="month" class="form-select" style="width: auto; padding: 0.45rem 0.65rem;" onchange="this.form.submit()">
-                <?php for ($m = 1; $m <= 12; $m++): ?>
-                    <option value="<?= $m ?>" <?= $selectedMonth == $m ? 'selected' : '' ?>>
-                        <?= date('F', mktime(0, 0, 0, $m, 10)) ?>
-                    </option>
-                <?php endfor; ?>
-            </select>
 
-            <select name="year" class="form-select" style="width: auto; padding: 0.45rem 0.65rem;" onchange="this.form.submit()">
-                <?php for ($y = date('Y'); $y >= date('Y') - 3; $y--): ?>
-                    <option value="<?= $y ?>" <?= $selectedYear == $y ? 'selected' : '' ?>><?= $y ?></option>
-                <?php endfor; ?>
-            </select>
-
-            <button type="submit" class="btn btn-secondary btn-sm">
-                <i class="fa-solid fa-filter"></i> Go
-            </button>
-        </form>
-
-        <button type="button" class="btn btn-secondary" onclick="exportTableToCSV('monthlyDayTable', 'monthly_sales_<?= $selectedYear ?>_<?= $selectedMonth ?>.csv')">
+    <div class="page-header-actions no-print">
+        <button type="button" class="btn btn-secondary" onclick="exportTableToCSV('monthlyProductTable', 'product_sales_<?= $startDate ?>_to_<?= $endDate ?>.csv')">
             <i class="fa-solid fa-file-csv"></i>
-            <span>Export CSV</span>
+            <span>Export Products CSV</span>
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="exportTableToCSV('monthlyDayTable', 'daily_breakdown_<?= $startDate ?>_to_<?= $endDate ?>.csv')">
+            <i class="fa-solid fa-calendar-days"></i>
+            <span>Export Daily CSV</span>
         </button>
         <button type="button" class="btn btn-primary" onclick="window.print()">
             <i class="fa-solid fa-print"></i>
@@ -151,14 +233,84 @@ $monthlyTopProducts = $db->fetchAll("
     </div>
 </div>
 
-<!-- Monthly KPI Cards -->
+<!-- Filter Bar: From Date - To Date, Quick Month Picker, and Product Name Search -->
+<div class="filter-bar no-print">
+    <form action="<?= BASE_URL ?>/modules/reports/monthly_sales.php" method="GET" id="reportFilterForm" style="display: flex; gap: 0.85rem; flex-wrap: wrap; align-items: flex-end; width: 100%;">
+        
+        <!-- Quick Month Selector -->
+        <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+            <label style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+                <i class="fa-regular fa-calendar-check" style="color: var(--primary);"></i> Quick Month
+            </label>
+            <div style="display: flex; gap: 0.35rem;">
+                <select id="quickMonth" class="form-select" style="width: auto; padding: 0.5rem 0.65rem;" onchange="applyQuickMonth()">
+                    <?php for ($m = 1; $m <= 12; $m++): ?>
+                        <option value="<?= $m ?>" <?= $selectedMonth == $m ? 'selected' : '' ?>>
+                            <?= date('F', mktime(0, 0, 0, $m, 10)) ?>
+                        </option>
+                    <?php endfor; ?>
+                </select>
+
+                <select id="quickYear" class="form-select" style="width: auto; padding: 0.5rem 0.65rem;" onchange="applyQuickMonth()">
+                    <?php for ($y = (int)date('Y'); $y >= (int)date('Y') - 3; $y--): ?>
+                        <option value="<?= $y ?>" <?= $selectedYear == $y ? 'selected' : '' ?>><?= $y ?></option>
+                    <?php endfor; ?>
+                </select>
+            </div>
+        </div>
+
+        <!-- From Date -->
+        <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+            <label for="from_date" style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+                <i class="fa-solid fa-calendar-day" style="color: var(--primary);"></i> From Date
+            </label>
+            <input type="date" id="from_date" name="from_date" class="form-control" value="<?= e($startDate) ?>" style="padding: 0.5rem 0.75rem; width: 155px;">
+        </div>
+
+        <!-- To Date -->
+        <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+            <label for="to_date" style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+                <i class="fa-solid fa-calendar-day" style="color: var(--primary);"></i> To Date
+            </label>
+            <input type="date" id="to_date" name="to_date" class="form-control" value="<?= e($endDate) ?>" style="padding: 0.5rem 0.75rem; width: 155px;">
+        </div>
+
+        <!-- Product Name / SKU Search -->
+        <div style="display: flex; flex-direction: column; gap: 0.3rem; flex: 1; min-width: 220px;">
+            <label for="product_search" style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+                <i class="fa-solid fa-magnifying-glass" style="color: var(--primary);"></i> Product Name / SKU Search
+            </label>
+            <div class="search-input-wrapper" style="width: 100%;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="product_search" name="product_search" class="form-control" placeholder="Type product name, SKU, or barcode..." value="<?= e($productSearch) ?>">
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button type="submit" class="btn btn-primary" style="padding: 0.55rem 1.15rem;">
+                <i class="fa-solid fa-filter"></i>
+                <span>Filter Report</span>
+            </button>
+
+            <?php if ($startDate !== sprintf('%04d-%02d-01', (int)date('Y'), (int)date('m')) || $endDate !== sprintf('%04d-%02d-%02d', (int)date('Y'), (int)date('m'), cal_days_in_month(CAL_GREGORIAN, (int)date('m'), (int)date('Y'))) || !empty($productSearch)): ?>
+                <a href="<?= BASE_URL ?>/modules/reports/monthly_sales.php" class="btn btn-secondary" style="padding: 0.55rem 0.95rem;" title="Reset to Current Month">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>Reset</span>
+                </a>
+            <?php endif; ?>
+        </div>
+    </form>
+</div>
+
+<!-- Summary KPI Cards -->
 <div class="stats-grid">
     <div class="stat-card">
         <div class="stat-info">
-            <div class="stat-label">Monthly Gross Revenue</div>
+            <div class="stat-label"><?= $isSingleMonth ? 'Monthly Gross Revenue' : 'Period Gross Revenue' ?></div>
             <div class="stat-value"><?= formatCurrency($monthRevenue) ?></div>
             <div class="stat-subtext">
-                <?= $monthOrders ?> Total Orders in <?= date('M Y', strtotime($monthStartDate)) ?>
+                <?= $monthOrders ?> Total Orders in <?= e($periodTitle) ?>
             </div>
         </div>
         <div class="stat-icon primary">
@@ -168,7 +320,7 @@ $monthlyTopProducts = $db->fetchAll("
 
     <div class="stat-card">
         <div class="stat-info">
-            <div class="stat-label">Monthly Gross Profit</div>
+            <div class="stat-label"><?= $isSingleMonth ? 'Monthly Gross Profit' : 'Period Gross Profit' ?></div>
             <div class="stat-value" style="color: var(--success);"><?= formatCurrency($monthGrossProfit) ?></div>
             <div class="stat-subtext">
                 Profit Margin: <strong><?= number_format($monthProfitMargin, 1) ?>%</strong>
@@ -206,12 +358,12 @@ $monthlyTopProducts = $db->fetchAll("
     </div>
 </div>
 
-<!-- Monthly Daily Revenue & Profit Trend Chart -->
+<!-- Daily Revenue & Profit Trend Chart -->
 <div class="card no-print">
     <div class="card-header">
         <div class="card-title">
             <i class="fa-solid fa-chart-column" style="color: var(--primary);"></i>
-            <span>Daily Revenue & Gross Profit in <?= e($monthName) ?></span>
+            <span>Daily Revenue & Gross Profit Trend (<?= e($periodTitle) ?>)</span>
         </div>
     </div>
     <div class="card-body">
@@ -221,133 +373,205 @@ $monthlyTopProducts = $db->fetchAll("
     </div>
 </div>
 
-<!-- Grid: Day-by-Day Table & Top Products of the Month -->
-<div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem;">
-    <!-- Top Products This Month -->
-    <div class="card">
-        <div class="card-header">
-            <div class="card-title">
+<!-- Product Sales Performance Table -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-header" style="flex-wrap: wrap; gap: 0.75rem;">
+        <div class="card-title">
+            <?php if (!empty($productSearch)): ?>
+                <i class="fa-solid fa-magnifying-glass" style="color: var(--primary);"></i>
+                <span>Product Sales for "<?= e($productSearch) ?>" (<?= e($periodTitle) ?>)</span>
+            <?php else: ?>
                 <i class="fa-solid fa-trophy" style="color: var(--warning);"></i>
-                <span>Top Selling Products in <?= e($monthName) ?></span>
-            </div>
+                <span>Top Selling Products (<?= e($periodTitle) ?>)</span>
+            <?php endif; ?>
         </div>
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Product & Category</th>
-                        <th>SKU</th>
-                        <th>Units Sold</th>
-                        <th>Total Revenue</th>
-                        <th>Gross Profit</th>
-                        <th>Revenue Contribution</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (!empty($monthlyTopProducts)): ?>
-                        <?php foreach ($monthlyTopProducts as $tp): 
-                            $contrib = $monthRevenue > 0 ? ($tp['total_product_revenue'] / $monthRevenue) * 100 : 0;
-                        ?>
-                            <tr>
-                                <td>
-                                    <a href="<?= BASE_URL ?>/modules/products/view.php?id=<?= $tp['product_id'] ?>" style="font-weight: 700;">
-                                        <?= e($tp['product_name']) ?>
-                                    </a><br>
-                                    <small style="color: var(--text-muted);"><?= e($tp['category_name'] ?? 'General') ?></small>
-                                </td>
-                                <td><code><?= e($tp['sku']) ?></code></td>
-                                <td><strong><?= $tp['total_qty_sold'] ?></strong> <?= e($tp['unit']) ?></td>
-                                <td><strong style="color: var(--primary);"><?= formatCurrency($tp['total_product_revenue']) ?></strong></td>
-                                <td><strong style="color: var(--success);"><?= formatCurrency($tp['total_product_profit']) ?></strong></td>
-                                <td>
-                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                        <div style="flex: 1; height: 6px; background: var(--border-color); border-radius: 4px; overflow: hidden;">
-                                            <div style="width: <?= min(100, $contrib) ?>%; height: 100%; background: var(--primary);"></div>
-                                        </div>
-                                        <small style="font-weight: 700; width: 45px;"><?= number_format($contrib, 1) ?>%</small>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
-                                No sales recorded in <?= e($monthName) ?>.
-                            </td>
-                        </tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+
+        <div style="display: flex; gap: 0.5rem; align-items: center; margin-left: auto;">
+            <!-- Live Instant Client-Side Table Filter -->
+            <div class="search-input-wrapper" style="max-width: 250px;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" class="form-control" placeholder="Quick filter table..." data-table-search="monthlyProductTable">
+            </div>
+
+            <button type="button" class="btn btn-secondary btn-sm" onclick="exportTableToCSV('monthlyProductTable', 'products_report_<?= $startDate ?>_to_<?= $endDate ?>.csv')" title="Export Table as CSV">
+                <i class="fa-solid fa-file-csv"></i>
+                <span>CSV</span>
+            </button>
         </div>
     </div>
 
-    <!-- Day-by-Day Table -->
-    <div class="card">
-        <div class="card-header">
-            <div class="card-title">
-                <i class="fa-solid fa-calendar-days" style="color: var(--primary);"></i>
-                <span>Day-by-Day Breakdown for <?= e($monthName) ?></span>
+    <!-- Active Search Summary Banner -->
+    <?php if (!empty($productSearch)): ?>
+        <div style="padding: 0.85rem 1.25rem; background: var(--bg-hover, #f1f5f9); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="font-size: 0.92rem;">
+                <i class="fa-solid fa-circle-check" style="color: var(--success); margin-right: 0.35rem;"></i>
+                Showing results for product keyword: <strong style="color: var(--primary);"><?= e($productSearch) ?></strong>
+                <span style="color: var(--text-muted); margin-left: 0.5rem;">
+                    (<?= count($monthlyTopProducts) ?> product<?= count($monthlyTopProducts) !== 1 ? 's' : '' ?> found)
+                </span>
+                <?php if (!empty($monthlyTopProducts)): ?>
+                    <span style="margin-left: 1rem; font-weight: 600;">
+                        Units Sold: <span style="color: var(--primary);"><?= number_format($searchTotalUnits) ?></span> |
+                        Revenue: <span style="color: var(--primary);"><?= formatCurrency($searchTotalRevenue) ?></span> |
+                        Gross Profit: <span style="color: var(--success);"><?= formatCurrency($searchTotalProfit) ?></span>
+                    </span>
+                <?php endif; ?>
             </div>
+            <a href="<?= BASE_URL ?>/modules/reports/monthly_sales.php?from_date=<?= urlencode($startDate) ?>&to_date=<?= urlencode($endDate) ?>" class="btn btn-secondary btn-sm" title="Remove keyword filter">
+                <i class="fa-solid fa-xmark"></i> Clear Product Search
+            </a>
+        </div>
+    <?php endif; ?>
+
+    <div class="table-responsive">
+        <table class="table" id="monthlyProductTable">
+            <thead>
+                <tr>
+                    <th>Product & Category</th>
+                    <th>SKU / Barcode</th>
+                    <th>Units Sold</th>
+                    <th>Total Revenue</th>
+                    <th>Gross Profit</th>
+                    <th>Revenue Contribution</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (!empty($monthlyTopProducts)): ?>
+                    <?php foreach ($monthlyTopProducts as $tp): 
+                        $contrib = $monthRevenue > 0 ? ($tp['total_product_revenue'] / $monthRevenue) * 100 : 0;
+                    ?>
+                        <tr>
+                            <td>
+                                <a href="<?= BASE_URL ?>/modules/products/view.php?id=<?= $tp['product_id'] ?>" style="font-weight: 700; color: var(--text-primary); text-decoration: none;">
+                                    <?= e($tp['product_name']) ?>
+                                </a><br>
+                                <small style="color: var(--text-muted);"><?= e($tp['category_name'] ?? 'General') ?></small>
+                            </td>
+                            <td>
+                                <code><?= e($tp['sku']) ?></code>
+                                <?php if (!empty($tp['barcode'])): ?>
+                                    <br><small style="color: var(--text-muted); font-size: 0.75rem;"><i class="fa-solid fa-barcode"></i> <?= e($tp['barcode']) ?></small>
+                                <?php endif; ?>
+                            </td>
+                            <td><strong><?= number_format($tp['total_qty_sold']) ?></strong> <?= e($tp['unit']) ?></td>
+                            <td><strong style="color: var(--primary);"><?= formatCurrency($tp['total_product_revenue']) ?></strong></td>
+                            <td><strong style="color: var(--success);"><?= formatCurrency($tp['total_product_profit']) ?></strong></td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <div style="flex: 1; height: 6px; background: var(--border-color); border-radius: 4px; overflow: hidden; min-width: 60px;">
+                                        <div style="width: <?= min(100, $contrib) ?>%; height: 100%; background: var(--primary);"></div>
+                                    </div>
+                                    <small style="font-weight: 700; width: 45px;"><?= number_format($contrib, 1) ?>%</small>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                            <div style="margin-bottom: 0.5rem; font-size: 1.5rem; opacity: 0.5;">
+                                <i class="fa-solid fa-box-open"></i>
+                            </div>
+                            <?php if (!empty($productSearch)): ?>
+                                No sales recorded for product matching "<strong><?= e($productSearch) ?></strong>" between <?= formatDate($startDate) ?> and <?= formatDate($endDate) ?>.
+                                <div style="margin-top: 0.75rem;">
+                                    <a href="<?= BASE_URL ?>/modules/reports/monthly_sales.php?from_date=<?= urlencode($startDate) ?>&to_date=<?= urlencode($endDate) ?>" class="btn btn-secondary btn-sm">
+                                        View all products in this period
+                                    </a>
+                                </div>
+                            <?php else: ?>
+                                No product sales recorded between <?= formatDate($startDate) ?> and <?= formatDate($endDate) ?>.
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Day-by-Day Table -->
+<div class="card">
+    <div class="card-header" style="flex-wrap: wrap; gap: 0.75rem;">
+        <div class="card-title">
+            <i class="fa-solid fa-calendar-days" style="color: var(--primary);"></i>
+            <span>Day-by-Day Breakdown (<?= e($periodTitle) ?>)</span>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center; margin-left: auto;">
             <div class="search-input-wrapper" style="max-width: 240px;">
                 <i class="fa-solid fa-magnifying-glass"></i>
                 <input type="text" class="form-control" placeholder="Search day..." data-table-search="monthlyDayTable">
             </div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="exportTableToCSV('monthlyDayTable', 'daily_breakdown_<?= $startDate ?>_to_<?= $endDate ?>.csv')" title="Export Table as CSV">
+                <i class="fa-solid fa-file-csv"></i>
+                <span>CSV</span>
+            </button>
         </div>
-        <div class="table-responsive">
-            <table class="table" id="monthlyDayTable">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Orders Count</th>
-                        <th>Units Sold</th>
-                        <th>Gross Revenue</th>
-                        <th>Gross Profit</th>
-                        <th>Profit Margin %</th>
-                        <th class="no-export" style="text-align: right;">Action</th>
+    </div>
+    <div class="table-responsive">
+        <table class="table" id="monthlyDayTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Orders Count</th>
+                    <th>Units Sold</th>
+                    <th>Gross Revenue</th>
+                    <th>Gross Profit</th>
+                    <th>Profit Margin %</th>
+                    <th class="no-export" style="text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($daysMap as $dItem): 
+                    $margin = $dItem['revenue'] > 0 ? ($dItem['profit'] / $dItem['revenue']) * 100 : 0;
+                ?>
+                    <tr style="<?= $dItem['revenue'] > 0 ? 'font-weight: 500;' : 'opacity: 0.7;' ?>">
+                        <td>
+                            <strong><?= formatDate($dItem['date'], 'D, M d, Y') ?></strong>
+                        </td>
+                        <td><?= $dItem['invoices'] ?></td>
+                        <td><?= $dItem['units_sold'] ?></td>
+                        <td><strong style="color: <?= $dItem['revenue'] > 0 ? 'var(--primary)' : 'inherit' ?>;"><?= formatCurrency($dItem['revenue']) ?></strong></td>
+                        <td><strong style="color: <?= $dItem['profit'] > 0 ? 'var(--success)' : 'inherit' ?>;"><?= formatCurrency($dItem['profit']) ?></strong></td>
+                        <td>
+                            <?php if ($dItem['revenue'] > 0): ?>
+                                <span class="badge <?= $margin >= 30 ? 'badge-success' : 'badge-warning' ?>">
+                                    <?= number_format($margin, 1) ?>%
+                                </span>
+                            <?php else: ?>
+                                <span style="color: var(--text-muted);">-</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="no-export" style="text-align: right;">
+                            <?php if ($dItem['revenue'] > 0): ?>
+                                <a href="<?= BASE_URL ?>/modules/reports/daily_sales.php?date=<?= $dItem['date'] ?>" class="btn btn-secondary btn-sm" title="View Everyday Sales Details">
+                                    <i class="fa-solid fa-arrow-right"></i>
+                                    <span>Daily Breakdown</span>
+                                </a>
+                            <?php endif; ?>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($daysMap as $dItem): 
-                        $margin = $dItem['revenue'] > 0 ? ($dItem['profit'] / $dItem['revenue']) * 100 : 0;
-                    ?>
-                        <tr style="<?= $dItem['revenue'] > 0 ? 'font-weight: 500;' : 'opacity: 0.7;' ?>">
-                            <td>
-                                <strong><?= formatDate($dItem['date'], 'D, M d, Y') ?></strong>
-                            </td>
-                            <td><?= $dItem['invoices'] ?></td>
-                            <td><?= $dItem['units_sold'] ?></td>
-                            <td><strong style="color: <?= $dItem['revenue'] > 0 ? 'var(--primary)' : 'inherit' ?>;"><?= formatCurrency($dItem['revenue']) ?></strong></td>
-                            <td><strong style="color: <?= $dItem['profit'] > 0 ? 'var(--success)' : 'inherit' ?>;"><?= formatCurrency($dItem['profit']) ?></strong></td>
-                            <td>
-                                <?php if ($dItem['revenue'] > 0): ?>
-                                    <span class="badge <?= $margin >= 30 ? 'badge-success' : 'badge-warning' ?>">
-                                        <?= number_format($margin, 1) ?>%
-                                    </span>
-                                <?php else: ?>
-                                    <span style="color: var(--text-muted);">-</span>
-                                <?php endif; ?>
-                            </td>
-                            <td class="no-export" style="text-align: right;">
-                                <?php if ($dItem['revenue'] > 0): ?>
-                                    <a href="<?= BASE_URL ?>/modules/reports/daily_sales.php?date=<?= $dItem['date'] ?>" class="btn btn-secondary btn-sm" title="View Everyday Sales Details">
-                                        <i class="fa-solid fa-arrow-right"></i>
-                                        <span>Daily Breakdown</span>
-                                    </a>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
     </div>
 </div>
 
 <script>
+// Helper to synchronize quick month select with from_date & to_date inputs
+function applyQuickMonth() {
+    const m = document.getElementById('quickMonth').value.padStart(2, '0');
+    const y = document.getElementById('quickYear').value;
+    const lastDay = new Date(y, parseInt(m, 10), 0).getDate();
+    document.getElementById('from_date').value = `${y}-${m}-01`;
+    document.getElementById('to_date').value = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
+    document.getElementById('reportFilterForm').submit();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const monthlyCtx = document.getElementById('monthlyChart');
     if (monthlyCtx) {
-        const labels = <?= json_encode(array_map(function($d) { return 'Day ' . $d['day']; }, array_values($daysMap))) ?>;
+        const labels = <?= json_encode(array_map(function($d) { return $d['label']; }, array_values($daysMap))) ?>;
         const revenueData = <?= json_encode(array_column(array_values($daysMap), 'revenue')) ?>;
         const profitData = <?= json_encode(array_column(array_values($daysMap), 'profit')) ?>;
 
@@ -374,7 +598,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'top' }
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + Number(context.raw).toLocaleString('en-IN', {
+                                    maximumFractionDigits: 2
+                                });
+                            }
+                        }
+                    }
                 },
                 scales: {
                     y: {

@@ -48,12 +48,14 @@ The primary objective of the system is to solve critical stock visibility proble
 
 ---
 
-### 📈 Module 4: Monthly Sales Report & Retrospective Trends
-- **Month & Year Selectors**: Multi-year and multi-month comparative reporting.
-- **Monthly Aggregate Metrics**: Monthly Gross Revenue, Gross Profit, Total Orders, Units Sold, and Average Order Value.
-- **Day-by-Day Performance Graph**: High-definition bar/line charts comparing daily revenue against gross profit across all days of the selected month.
-- **Daily Performance Table**: Calendar day breakdown detailing invoices, units sold, revenue, profit, and margins.
-- **Top 10 Performing Products**: Ranked by units sold and revenue contribution percentage to total monthly sales.
+### 📈 Module 4: Monthly & Date-Wise Sales Report & Retrospective Trends
+- **Flexible Date Scope**: Seamlessly switch between quick calendar **Month & Year Selectors** and custom **From Date — To Date** arbitrary ranges.
+- **Product Name & SKU Search Engine**: On-demand search query filtering sales metrics by product name, SKU, or barcode with instant summary metrics (units sold, revenue, gross profit).
+- **Dual-Layer Table Filtering**: Instant keystroke client-side search across product performance and daily breakdown tables.
+- **Period Aggregate Metrics**: Gross Revenue, Gross Profit, Total Orders, Units Sold, and Average Order Value.
+- **Day-by-Day Performance Graph**: High-definition bar charts comparing daily revenue against gross profit across the entire selected date range.
+- **Daily Performance Table**: Calendar day breakdown detailing invoices, units sold, revenue, profit, and margins with direct link to Everyday Sales inspection.
+- **Product Sales Performance Audit**: Ranked by revenue contribution percentage to total period sales with CSV export.
 
 ---
 
