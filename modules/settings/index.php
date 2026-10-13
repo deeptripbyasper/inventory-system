@@ -162,8 +162,9 @@ if (empty($currentSettings['currency_code']) || preg_match('/[0-9]/', $currentSe
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" for="tax_rate_percent">Sales Tax Rate (%)</label>
+                    <label class="form-label" for="tax_rate_percent">GST Tax Rate (% Inclusive in Selling Prices)</label>
                     <input type="number" step="0.01" min="0" id="tax_rate_percent" name="tax_rate_percent" class="form-control" value="<?= e($currentSettings['tax_rate_percent'] ?? '5.00') ?>">
+                    <small style="color: var(--text-muted); font-size: 0.8rem; display: block; margin-top: 0.25rem;">Product selling prices at counter are inclusive of this tax rate.</small>
                 </div>
             </div>
         </div>

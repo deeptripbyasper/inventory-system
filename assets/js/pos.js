@@ -464,9 +464,10 @@ function openInvoicePreviewModal() {
     });
 
     const discountFinal = parseFloat((document.getElementById('cartDiscountFinal') && document.getElementById('cartDiscountFinal').value) || 0);
-    const taxable = Math.max(0, subtotal - discountFinal);
-    const tax = (taxable * taxRate) / 100;
-    const grand = taxable + tax;
+    // Product selling prices are INCLUSIVE of GST:
+    const grand = Math.max(0, subtotal - discountFinal);
+    const tax = (grand * taxRate) / (100 + taxRate);
+    const taxable = grand - tax;
 
     const tableBody = document.getElementById('previewModalTableBody');
     if (tableBody) tableBody.innerHTML = tBodyHtml;
@@ -650,9 +651,12 @@ function renderCart() {
         finalDiscount = Math.min(subtotal, rawDiscount);
     }
 
-    const taxableAmount = Math.max(0, subtotal - finalDiscount);
-    const taxAmount = (taxableAmount * taxRate) / 100;
-    const grandTotal = taxableAmount + taxAmount;
+    // Product selling prices are INCLUSIVE of GST:
+    // Grand Total is Subtotal - Discount (no extra tax added on top)
+    const grandTotal = Math.max(0, subtotal - finalDiscount);
+    // GST included inside the grand total:
+    const taxAmount = (grandTotal * taxRate) / (100 + taxRate);
+    const taxableAmount = grandTotal - taxAmount;
 
     if (subtotalEl) subtotalEl.innerText = `${currencySymbol}${subtotal.toFixed(2)}`;
     if (taxEl) taxEl.innerText = `${currencySymbol}${taxAmount.toFixed(2)}`;

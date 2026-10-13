@@ -53,6 +53,7 @@ $subtotal = (float)$sale['subtotal'];
 $discount = (float)$sale['discount'];
 $taxTotal = (float)$sale['tax'];
 $grandTotal = (float)$sale['grand_total'];
+$taxableBase = max(0.00, $grandTotal - $taxTotal);
 $amountPaid = isset($sale['amount_paid']) ? (float)$sale['amount_paid'] : $grandTotal;
 $changeReturned = isset($sale['change_returned']) ? (float)$sale['change_returned'] : 0.00;
 
@@ -619,11 +620,15 @@ $storeFssai = $systemSettings['store_fssai'] ?? '10019021004321';
                         </tr>
                     <?php endif; ?>
                     <tr>
-                        <td>CGST (<?= $cgstRate ?>%):</td>
+                        <td>Taxable Value:</td>
+                        <td style="text-align: right;"><?= formatCurrency($taxableBase) ?></td>
+                    </tr>
+                    <tr>
+                        <td>CGST (<?= $cgstRate ?>% Incl.):</td>
                         <td style="text-align: right;"><?= formatCurrency($cgstAmount) ?></td>
                     </tr>
                     <tr>
-                        <td>SGST (<?= $sgstRate ?>%):</td>
+                        <td>SGST (<?= $sgstRate ?>% Incl.):</td>
                         <td style="text-align: right;"><?= formatCurrency($sgstAmount) ?></td>
                     </tr>
                 </table>
@@ -758,7 +763,7 @@ $storeFssai = $systemSettings['store_fssai'] ?? '10019021004321';
                     <div>
                         <table class="inv-calc-table">
                             <tr>
-                                <td>Subtotal (Taxable Value):</td>
+                                <td>Total Items (MRP / Incl.):</td>
                                 <td style="text-align: right; font-weight: 600;"><?= formatCurrency($subtotal) ?></td>
                             </tr>
                             <?php if ($discount > 0): ?>
@@ -768,11 +773,15 @@ $storeFssai = $systemSettings['store_fssai'] ?? '10019021004321';
                                 </tr>
                             <?php endif; ?>
                             <tr>
-                                <td>CGST (<?= $cgstRate ?>%):</td>
+                                <td>Taxable Value (Base):</td>
+                                <td style="text-align: right; font-weight: 600;"><?= formatCurrency($taxableBase) ?></td>
+                            </tr>
+                            <tr>
+                                <td>CGST (<?= $cgstRate ?>% Included):</td>
                                 <td style="text-align: right;"><?= formatCurrency($cgstAmount) ?></td>
                             </tr>
                             <tr>
-                                <td>SGST (<?= $sgstRate ?>%):</td>
+                                <td>SGST (<?= $sgstRate ?>% Included):</td>
                                 <td style="text-align: right;"><?= formatCurrency($sgstAmount) ?></td>
                             </tr>
                             <tr class="inv-grand-row">

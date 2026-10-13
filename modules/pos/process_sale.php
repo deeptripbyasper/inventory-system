@@ -99,9 +99,12 @@ try {
     }
     $discount = min($subtotal, max(0.00, $discount));
 
-    $taxable = max(0, $subtotal - $discount);
-    $tax = ($taxable * TAX_RATE) / 100;
-    $grandTotal = $taxable + $tax;
+    // Product selling prices are INCLUSIVE of GST:
+    // Grand Total is (Subtotal - Discount) - tax is not added on top
+    $grandTotal = max(0.00, $subtotal - $discount);
+    // GST included inside the grand total:
+    $tax = ($grandTotal * TAX_RATE) / (100 + TAX_RATE);
+    $taxable = $grandTotal - $tax;
 
     // Cash Paid & Change Calculations
     if ($paymentMethod === 'cash') {

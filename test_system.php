@@ -88,7 +88,7 @@ $db->beginTransaction();
 $invNo = "TEST-INV-" . time();
 $saleId = $db->insert("
     INSERT INTO sales (invoice_no, user_id, customer_name, customer_phone, sale_date, subtotal, discount, tax, grand_total, amount_paid, change_returned, payment_method, status)
-    VALUES (?, 1, 'Simulated Test Customer', '+91 99999 88888', NOW(), 54.00, 0.00, 2.70, 56.70, 100.00, 43.30, 'cash', 'completed')
+    VALUES (?, 1, 'Simulated Test Customer', '+91 99999 88888', NOW(), 54.00, 0.00, 2.57, 54.00, 100.00, 46.00, 'cash', 'completed')
 ", "s", [$invNo]);
 
 $db->insert("

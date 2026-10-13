@@ -332,7 +332,7 @@ $totalProductsCount = count($availableItems);
                             <input type="number" step="0.01" min="0" name="discount_value" id="cartDiscountInput" class="fin-disc-input" value="0.00">
                         </div>
                         <div class="fin-col">
-                            <span class="fin-label">GST 5%</span>
+                            <span class="fin-label">GST <?= (float)TAX_RATE ?>% (Incl.)</span>
                             <span class="fin-val" id="cartTax"><?= formatCurrency(0) ?></span>
                         </div>
                         <div class="fin-col fin-total-col">
@@ -569,7 +569,7 @@ $totalProductsCount = count($availableItems);
                     <strong style="color: var(--success);" id="previewModalDiscount">₹0.00</strong>
                 </div>
                 <div class="preview-fin-row">
-                    <span>GST Tax (<?= TAX_RATE ?>%):</span>
+                    <span>GST (<?= TAX_RATE ?>% Included):</span>
                     <strong id="previewModalTax">₹0.00</strong>
                 </div>
                 <div class="preview-fin-total-row">
